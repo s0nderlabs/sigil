@@ -50,8 +50,9 @@ contract Sigil is ReceiverTemplate {
 
     constructor(
         address _forwarderAddress,
-        address _validationRegistry
-    ) ReceiverTemplate(_forwarderAddress) {
+        address _validationRegistry,
+        address _initialOwner
+    ) ReceiverTemplate(_forwarderAddress, _initialOwner) {
         if (_validationRegistry == address(0)) revert ZeroAddress();
         validationRegistry = IValidationRegistry(_validationRegistry);
     }

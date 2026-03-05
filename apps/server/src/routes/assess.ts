@@ -8,7 +8,8 @@ export async function handleAssess(req: Request): Promise<Response> {
   }
 
   try {
-    const body = await req.json() as {
+    // CRE sends body as base64-encoded bytes; direct callers send raw JSON
+    let body: {
       agentId: string;
       policyId: string;
       requestHash: string;
@@ -18,12 +19,23 @@ export async function handleAssess(req: Request): Promise<Response> {
         tokenURI: string;
       };
     };
+    const raw = await req.text();
+    body = raw.startsWith("{")
+      ? JSON.parse(raw)
+      : JSON.parse(atob(raw));
+
+    // Normalize bytes32 hex policyId to string for Supabase lookup
+    let lookupId = body.policyId;
+    if (lookupId.startsWith("0x") && lookupId.length === 66) {
+      const hex = lookupId.slice(2).replace(/(00)+$/, "");
+      lookupId = Buffer.from(hex, "hex").toString("utf8");
+    }
 
     const supabase = createSupabaseClient();
     const { data: policy, error } = await supabase
       .from("policies")
-      .select("*")
-      .eq("id", body.policyId)
+      .select("id, name, rules, is_active")
+      .eq("id", lookupId)
       .single();
 
     if (error || !policy) {

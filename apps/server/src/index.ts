@@ -6,6 +6,7 @@ const PORT = Number(process.env.PORT) || 3001;
 
 Bun.serve({
   port: PORT,
+  idleTimeout: 255, // Agent SDK queries can take 60-120s
   async fetch(req) {
     const url = new URL(req.url);
 

@@ -32,8 +32,9 @@ abstract contract ReceiverTemplate is IReceiver, Ownable {
   event SecurityWarning(string message);
 
   constructor(
-    address _forwarderAddress
-  ) Ownable(msg.sender) {
+    address _forwarderAddress,
+    address _initialOwner
+  ) Ownable(_initialOwner) {
     if (_forwarderAddress == address(0)) {
       revert InvalidForwarderAddress();
     }

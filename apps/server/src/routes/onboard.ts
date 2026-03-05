@@ -1,10 +1,21 @@
-import { verifySiwe } from "../middleware/auth.js";
+import { verifyApiKey, verifySiwe } from "../middleware/auth.js";
 import { runOnboarding } from "../agents/agent-a.js";
 
 export async function handleOnboard(req: Request): Promise<Response> {
-  const siweResult = await verifySiwe(req);
-  if (!siweResult) {
-    return Response.json({ error: "Unauthorized — SIWE verification failed" }, { status: 401 });
+  let authenticatedAddress: string;
+
+  // Dev mode: skip SIWE, use API key auth instead
+  if (process.env.DEV_MODE === "true") {
+    if (!verifyApiKey(req)) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    authenticatedAddress = req.headers.get("x-wallet-address") || "0xDEV";
+  } else {
+    const siweResult = await verifySiwe(req);
+    if (!siweResult) {
+      return Response.json({ error: "Unauthorized — SIWE verification failed" }, { status: 401 });
+    }
+    authenticatedAddress = siweResult.address;
   }
 
   try {
@@ -21,7 +32,7 @@ export async function handleOnboard(req: Request): Promise<Response> {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Transfer-Encoding": "chunked",
-        "X-Authenticated-Address": siweResult.address,
+        "X-Authenticated-Address": authenticatedAddress,
       },
     });
   } catch (err) {

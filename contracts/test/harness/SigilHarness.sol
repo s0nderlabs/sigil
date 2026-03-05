@@ -7,8 +7,9 @@ import {Sigil} from "../../src/Sigil.sol";
 contract SigilHarness is Sigil {
     constructor(
         address _forwarder,
-        address _registry
-    ) Sigil(_forwarder, _registry) {}
+        address _registry,
+        address _owner
+    ) Sigil(_forwarder, _registry, _owner) {}
 
     function setComplianceStatusDirect(
         address wallet,

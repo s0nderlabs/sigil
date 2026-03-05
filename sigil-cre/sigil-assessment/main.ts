@@ -20,6 +20,7 @@ import {
   parseAbiParameters,
   hexToBytes,
   bytesToHex,
+  stringToHex,
   zeroAddress,
   type Hex,
 } from "viem";
@@ -72,6 +73,25 @@ const identityRegistryAbi = [
 const IDENTITY_REGISTRY = "0x8004A818BFB912233c491871b3d84c89A494BD9e" as const;
 const SEPOLIA_CHAIN_SELECTOR = 16015286601757825753n;
 
+// ── Helpers ──────────────────────────────────────────────────────────────
+function callView(
+  evmClient: EVMClient,
+  runtime: Runtime<Config>,
+  functionName: "getAgentWallet" | "ownerOf" | "tokenURI",
+  args: readonly [bigint],
+): string {
+  const calldata = encodeFunctionData({ abi: identityRegistryAbi, functionName, args });
+  const reply = evmClient.callContract(runtime, {
+    call: encodeCallMsg({ from: zeroAddress, to: IDENTITY_REGISTRY, data: calldata }),
+    blockNumber: LAST_FINALIZED_BLOCK_NUMBER,
+  }).result();
+  return decodeFunctionResult({
+    abi: identityRegistryAbi,
+    functionName,
+    data: bytesToHex(reply.data),
+  }) as string;
+}
+
 // ── Workflow ─────────────────────────────────────────────────────────────
 const onHttpTrigger = (
   runtime: Runtime<Config>,
@@ -84,69 +104,10 @@ const onHttpTrigger = (
 
   // ── Step 1: EVM Read — Fetch agent identity from 8004 Identity Registry ──
   const evmClient = new EVMClient(SEPOLIA_CHAIN_SELECTOR);
-
-  // getAgentWallet(agentId)
-  const walletCalldata = encodeFunctionData({
-    abi: identityRegistryAbi,
-    functionName: "getAgentWallet",
-    args: [agentIdBigInt],
-  });
-  const walletReply = evmClient.callContract(runtime, {
-    call: encodeCallMsg({
-      from: zeroAddress,
-      to: IDENTITY_REGISTRY,
-      data: walletCalldata,
-    }),
-    blockNumber: LAST_FINALIZED_BLOCK_NUMBER,
-  }).result();
-  const wallet = decodeFunctionResult({
-    abi: identityRegistryAbi,
-    functionName: "getAgentWallet",
-    data: bytesToHex(walletReply.data),
-  }) as string;
-
+  const wallet = callView(evmClient, runtime, "getAgentWallet", [agentIdBigInt]);
   runtime.log(`Agent wallet: ${wallet}`);
-
-  // ownerOf(agentId)
-  const ownerCalldata = encodeFunctionData({
-    abi: identityRegistryAbi,
-    functionName: "ownerOf",
-    args: [agentIdBigInt],
-  });
-  const ownerReply = evmClient.callContract(runtime, {
-    call: encodeCallMsg({
-      from: zeroAddress,
-      to: IDENTITY_REGISTRY,
-      data: ownerCalldata,
-    }),
-    blockNumber: LAST_FINALIZED_BLOCK_NUMBER,
-  }).result();
-  const owner = decodeFunctionResult({
-    abi: identityRegistryAbi,
-    functionName: "ownerOf",
-    data: bytesToHex(ownerReply.data),
-  }) as string;
-
-  // tokenURI(agentId)
-  const tokenURICalldata = encodeFunctionData({
-    abi: identityRegistryAbi,
-    functionName: "tokenURI",
-    args: [agentIdBigInt],
-  });
-  const tokenURIReply = evmClient.callContract(runtime, {
-    call: encodeCallMsg({
-      from: zeroAddress,
-      to: IDENTITY_REGISTRY,
-      data: tokenURICalldata,
-    }),
-    blockNumber: LAST_FINALIZED_BLOCK_NUMBER,
-  }).result();
-  const tokenURI = decodeFunctionResult({
-    abi: identityRegistryAbi,
-    functionName: "tokenURI",
-    data: bytesToHex(tokenURIReply.data),
-  }) as string;
-
+  const owner = callView(evmClient, runtime, "ownerOf", [agentIdBigInt]);
+  const tokenURI = callView(evmClient, runtime, "tokenURI", [agentIdBigInt]);
   runtime.log(`Identity fetched: owner=${owner}, tokenURI=${tokenURI}`);
 
   // ── Step 2: HTTP POST to AI Service ──
@@ -167,25 +128,29 @@ const onHttpTrigger = (
     onChainData: { wallet, owner, tokenURI },
   };
 
-  const sendHttp = httpClient.sendRequest(
-    runtime,
-    (sender) => {
-      const bodyBytes = new TextEncoder().encode(JSON.stringify(requestBody));
-      const response = sender.sendRequest({
-        url: runtime.config.aiServiceUrl,
-        method: "POST",
-        body: Buffer.from(bodyBytes).toString("base64"),
-        multiHeaders: {
-          "Content-Type": { values: ["application/json"] },
-          ...(apiKey ? { Authorization: { values: [`Bearer ${apiKey}`] } } : {}),
-        },
-      }).result();
-      return json(response) as AssessmentResponse;
-    },
-    consensusIdenticalAggregation<AssessmentResponse>(),
-  );
+  const postToAiService = (sender: any): AssessmentResponse => {
+    const response = sender.sendRequest({
+      url: runtime.config.aiServiceUrl,
+      method: "POST" as const,
+      body: Buffer.from(JSON.stringify(requestBody)).toString("base64"),
+      headers: {
+        "Content-Type": "application/json",
+        ...(apiKey ? { "Authorization": `Bearer ${apiKey}` } : {}),
+      },
+      timeout: "120s",
+      cacheSettings: {
+        store: true,
+        maxAge: "300s",
+      },
+    }).result();
+    return json(response) as AssessmentResponse;
+  };
 
-  const assessment = sendHttp().result();
+  const assessment = httpClient.sendRequest(
+    runtime,
+    postToAiService,
+    consensusIdenticalAggregation<AssessmentResponse>(),
+  )().result();
 
   runtime.log(`Assessment: score=${assessment.score}, compliant=${assessment.compliant}`);
 
@@ -195,13 +160,18 @@ const onHttpTrigger = (
   }
 
   // ── Step 3: Encode report payload ──
+  // Ensure policyId is bytes32 hex (pad string IDs to bytes32)
+  const policyIdBytes32: Hex = (request.policyId.startsWith("0x") && request.policyId.length === 66)
+    ? request.policyId as Hex
+    : stringToHex(request.policyId, { size: 32 });
+
   const reportPayload = encodeAbiParameters(
     parseAbiParameters("uint256, bytes32, address, bytes32, uint8, bool, string, bytes32, string"),
     [
       agentIdBigInt,
       request.requestHash as Hex,
       wallet as `0x${string}`,
-      request.policyId as Hex,
+      policyIdBytes32,
       assessment.score,
       assessment.compliant,
       assessment.evidenceURI,

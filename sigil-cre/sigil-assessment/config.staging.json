@@ -1,3 +1,4 @@
 {
-  "aiServiceUrl": "http://localhost:3001/assess"
+  "aiServiceUrl": "http://localhost:3001/assess",
+  "sigilMiddleware": "0x594EC2FC52Ce96509b526BbFae75568c898Ae647"
 }

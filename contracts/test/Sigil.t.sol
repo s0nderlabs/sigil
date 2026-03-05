@@ -27,7 +27,7 @@ contract SigilTest is Test {
 
     function setUp() public {
         registry = new MockValidationRegistry();
-        sigil = new SigilHarness(forwarder, address(registry));
+        sigil = new SigilHarness(forwarder, address(registry), address(this));
         sigil.registerPolicy(policyId, "Basic Agent Trust", "Basic compliance check", true);
     }
 
@@ -72,12 +72,12 @@ contract SigilTest is Test {
 
     function test_constructor_revert_zeroForwarder() public {
         vm.expectRevert(ReceiverTemplate.InvalidForwarderAddress.selector);
-        new SigilHarness(address(0), address(registry));
+        new SigilHarness(address(0), address(registry), address(this));
     }
 
     function test_constructor_revert_zeroRegistry() public {
         vm.expectRevert(Sigil.ZeroAddress.selector);
-        new SigilHarness(forwarder, address(0));
+        new SigilHarness(forwarder, address(0), address(this));
     }
 
     // ── Policy Management Tests ─────────────────────────────────────────
