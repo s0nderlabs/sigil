@@ -1,6 +1,13 @@
-// Supabase client factory
-// Server: use secret key. Browser: use publishable key.
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+let cachedClient: SupabaseClient | null = null;
+
 export function createSupabaseClient() {
-  // TODO: createClient(SUPABASE_URL, key)
-  throw new Error("Not implemented");
+  if (!cachedClient) {
+    cachedClient = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_PUBLISHABLE_KEY!
+    );
+  }
+  return cachedClient;
 }

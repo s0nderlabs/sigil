@@ -1,3 +1,4 @@
+export type { ToolDefinition } from "./types.js";
 export { getEthBalance } from "./get-eth-balance.js";
 export { getTokenBalance } from "./get-token-balance.js";
 export { getTransactionHistory } from "./get-transaction-history.js";
