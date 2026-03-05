@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+.next/
+out/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env*.local
+
+# OS
+.DS_Store
+
+# Foundry
+contracts/cache/
+contracts/out/
+contracts/broadcast/
+
+# CRE build artifacts
+sigil-cre/**/.cre_build_tmp*
+
+# Claude
+.claude/
+CLAUDE.md
+
+# Misc
+*.log

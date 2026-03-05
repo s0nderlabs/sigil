@@ -1,0 +1,15 @@
+{
+  "name": "sigil",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev:server": "bun --filter @sigil/server dev",
+    "dev:web": "bun --filter @sigil/web dev",
+    "build:core": "bun --filter @sigil/core build",
+    "typecheck": "tsc -b tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/bun": "^1.2.0"
+  }
+}

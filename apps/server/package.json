@@ -1,0 +1,24 @@
+{
+  "name": "@sigil/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "start": "bun dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sigil/core": "workspace:*",
+    "@anthropic-ai/claude-agent-sdk": "^0.1.0",
+    "viem": "^2.28.0",
+    "siwe": "^3.0.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/bun": "^1.2.0"
+  }
+}
