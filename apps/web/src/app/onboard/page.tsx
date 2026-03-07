@@ -7,7 +7,7 @@ import { useChat } from "@/hooks/use-chat";
 import { useSiweAuth } from "@/hooks/use-siwe";
 import type { SiweAuth } from "@/hooks/use-siwe";
 
-const IS_DEV = process.env.NEXT_PUBLIC_SIGIL_API_KEY !== undefined;
+const IS_DEV = process.env.NODE_ENV === "development";
 const DEV_AUTH: SiweAuth = { message: "dev", signature: "dev" };
 
 export default function OnboardPage() {
