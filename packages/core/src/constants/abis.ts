@@ -101,7 +101,8 @@ export const VALIDATION_REGISTRY_ABI = [
     type: "event",
     name: "ValidationResponse",
     inputs: [
-      { name: "validator", type: "address", indexed: true },
+      { name: "validatorAddress", type: "address", indexed: true },
+      { name: "agentId", type: "uint256", indexed: true },
       { name: "requestHash", type: "bytes32", indexed: true },
       { name: "response", type: "uint8", indexed: false },
       { name: "responseURI", type: "string", indexed: false },

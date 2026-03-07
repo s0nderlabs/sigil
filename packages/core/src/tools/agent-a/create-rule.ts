@@ -8,6 +8,7 @@ const VALID_DATA_SOURCES = [
   "contract_code",
   "sanctions_check",
   "validation_history",
+  "reputation_history",
 ] as const;
 
 export const createRule: ToolDefinition = {
@@ -23,7 +24,7 @@ export const createRule: ToolDefinition = {
     dataSource: z
       .enum(VALID_DATA_SOURCES)
       .describe(
-        "The data source Agent B will use: eth_balance, token_balance, transaction_history, contract_code, sanctions_check, or validation_history"
+        "The data source Agent B will use: eth_balance, token_balance, transaction_history, contract_code, sanctions_check, validation_history, or reputation_history"
       ),
     evaluationGuidance: z
       .string()

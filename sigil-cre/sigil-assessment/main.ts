@@ -32,10 +32,21 @@ type Config = {
 };
 
 type AssessmentRequest = {
+  type?: "assess";
   agentId: string;
   policyId: string;
   requestHash: string;
 };
+
+type PolicyRegistrationRequest = {
+  type: "register_policy";
+  policyId: string;
+  name: string;
+  description: string;
+  isPublic: boolean;
+};
+
+type WorkflowRequest = AssessmentRequest | PolicyRegistrationRequest;
 
 type AssessmentResponse = {
   score: number;
@@ -74,6 +85,12 @@ const IDENTITY_REGISTRY = "0x8004A818BFB912233c491871b3d84c89A494BD9e" as const;
 const SEPOLIA_CHAIN_SELECTOR = 16015286601757825753n;
 
 // ── Helpers ──────────────────────────────────────────────────────────────
+function toPolicyIdBytes32(policyId: string): Hex {
+  return (policyId.startsWith("0x") && policyId.length === 66)
+    ? policyId as Hex
+    : stringToHex(policyId, { size: 32 });
+}
+
 function callView(
   evmClient: EVMClient,
   runtime: Runtime<Config>,
@@ -92,12 +109,75 @@ function callView(
   }) as string;
 }
 
+// ── Report Submission Helper ─────────────────────────────────────────────
+function submitReport(
+  runtime: Runtime<Config>,
+  evmClient: EVMClient,
+  reportPayload: Hex,
+): void {
+  const sigilAddress = runtime.config.sigilMiddleware || "";
+  if (!sigilAddress) {
+    runtime.log("WARN: No sigilMiddleware address configured, skipping on-chain report");
+    return;
+  }
+
+  const reportReq = prepareReportRequest(reportPayload);
+  const report = runtime.report(reportReq).result();
+
+  evmClient.writeReport(runtime, {
+    receiver: hexToBytes(sigilAddress as Hex),
+    report,
+    $report: true,
+  }).result();
+
+  runtime.log("Report submitted to Sigil contract");
+}
+
 // ── Workflow ─────────────────────────────────────────────────────────────
 const onHttpTrigger = (
   runtime: Runtime<Config>,
   payload: HTTPPayload
 ): string => {
-  const request = decodeJson(payload.input) as AssessmentRequest;
+  const request = decodeJson(payload.input) as WorkflowRequest;
+  const requestType = request.type || "assess";
+
+  if (requestType === "register_policy") {
+    return handlePolicyRegistration(runtime, request as PolicyRegistrationRequest);
+  }
+
+  return handleAssessment(runtime, request as AssessmentRequest);
+};
+
+// ── Policy Registration Handler ──────────────────────────────────────────
+function handlePolicyRegistration(
+  runtime: Runtime<Config>,
+  request: PolicyRegistrationRequest,
+): string {
+  runtime.log(`Policy registration: policyId=${request.policyId}, name=${request.name}`);
+
+  const policyIdBytes32 = toPolicyIdBytes32(request.policyId);
+
+  const reportPayload = encodeAbiParameters(
+    parseAbiParameters("uint8, bytes32, string, string, bool"),
+    [1, policyIdBytes32, request.name, request.description, request.isPublic]
+  );
+
+  const evmClient = new EVMClient(SEPOLIA_CHAIN_SELECTOR);
+  submitReport(runtime, evmClient, reportPayload as Hex);
+
+  return JSON.stringify({
+    type: "register_policy",
+    policyId: request.policyId,
+    name: request.name,
+    success: true,
+  });
+}
+
+// ── Assessment Handler ───────────────────────────────────────────────────
+function handleAssessment(
+  runtime: Runtime<Config>,
+  request: AssessmentRequest,
+): string {
   const agentIdBigInt = BigInt(request.agentId);
 
   runtime.log(`Assessment request: agentId=${request.agentId}, policyId=${request.policyId}`);
@@ -159,15 +239,13 @@ const onHttpTrigger = (
     return JSON.stringify({ error: "AI service returned empty assessment" });
   }
 
-  // ── Step 3: Encode report payload ──
-  // Ensure policyId is bytes32 hex (pad string IDs to bytes32)
-  const policyIdBytes32: Hex = (request.policyId.startsWith("0x") && request.policyId.length === 66)
-    ? request.policyId as Hex
-    : stringToHex(request.policyId, { size: 32 });
+  // ── Step 3: Encode report payload (with reportType=0 prefix) ──
+  const policyIdBytes32 = toPolicyIdBytes32(request.policyId);
 
   const reportPayload = encodeAbiParameters(
-    parseAbiParameters("uint256, bytes32, address, bytes32, uint8, bool, string, bytes32, string"),
+    parseAbiParameters("uint8, uint256, bytes32, address, bytes32, uint8, bool, string, bytes32, string"),
     [
+      0,
       agentIdBigInt,
       request.requestHash as Hex,
       wallet as `0x${string}`,
@@ -183,21 +261,7 @@ const onHttpTrigger = (
   runtime.log(`Report payload encoded: ${reportPayload.slice(0, 20)}...`);
 
   // ── Step 4: Submit report via EVM Write ──
-  const sigilAddress = runtime.config.sigilMiddleware || "";
-  if (sigilAddress) {
-    const reportReq = prepareReportRequest(reportPayload);
-    const report = runtime.report(reportReq).result();
-
-    evmClient.writeReport(runtime, {
-      receiver: hexToBytes(sigilAddress as Hex),
-      report,
-      $report: true,
-    }).result();
-
-    runtime.log("Report submitted to Sigil contract");
-  } else {
-    runtime.log("WARN: No sigilMiddleware address configured, skipping on-chain report");
-  }
+  submitReport(runtime, evmClient, reportPayload as Hex);
 
   return JSON.stringify({
     agentId: request.agentId,
@@ -206,7 +270,7 @@ const onHttpTrigger = (
     compliant: assessment.compliant,
     evidenceURI: assessment.evidenceURI,
   });
-};
+}
 
 // ── Workflow Init ─────────────────────────────────────────────────────────
 const initWorkflow = (config: Config) => {

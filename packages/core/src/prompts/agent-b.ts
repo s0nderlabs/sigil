@@ -21,6 +21,7 @@ For EACH rule in the policy:
    - \`contract_code\` → call \`check_contract_code\`
    - \`sanctions_check\` → call \`check_sanctions\`
    - \`validation_history\` → call \`get_validation_history\`
+   - \`reputation_history\` → call \`get_reputation_history\`
 
 2. **Analyze the data** against the rule's criteria following the evaluationGuidance.
 

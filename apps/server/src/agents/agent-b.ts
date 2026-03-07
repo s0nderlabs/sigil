@@ -10,6 +10,7 @@ import {
   checkContractCode,
   checkSanctions,
   getValidationHistory,
+  getReputationHistory,
   pinEvidence,
 } from "@sigil/core/tools/agent-b";
 
@@ -24,6 +25,7 @@ function createAgentBTools(sessionState: Map<string, unknown>) {
     checkContractCode,
     checkSanctions,
     getValidationHistory,
+    getReputationHistory,
     pinEvidence,
   ].map((def) =>
     tool(def.name, def.description, def.inputSchema.shape, async (args: any) => {
@@ -97,7 +99,8 @@ export async function runAssessment(params: {
   for await (const message of query({
     prompt,
     options: {
-      model: "claude-sonnet-4-6",
+      model: process.env.CLAUDE_MODEL || "claude-opus-4-6",
+      maxThinkingTokens: 10000,
       systemPrompt: AGENT_B_SYSTEM_PROMPT,
       mcpServers: { "sigil-tools": server },
       maxTurns: 25,

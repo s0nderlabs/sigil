@@ -37,6 +37,7 @@ contract Sigil is ReceiverTemplate {
     event PolicyDeactivated(bytes32 indexed policyId);
     event ComplianceUpdated(address indexed wallet, bytes32 indexed policyId, bool compliant, uint8 score);
     event ReportProcessed(uint256 indexed agentId, bytes32 indexed requestHash, bytes32 indexed policyId);
+    event ValidationRegistrySkipped(bytes32 indexed requestHash, string reason);
 
     // ── Errors ─────────────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ contract Sigil is ReceiverTemplate {
     error PolicyNotFound(bytes32 policyId);
     error PolicyInactive(bytes32 policyId);
     error InvalidScore(uint8 score);
+    error InvalidReportType(uint8 reportType);
     error ZeroAddress();
 
     // ── Constructor ────────────────────────────────────────────────────
@@ -59,12 +61,23 @@ contract Sigil is ReceiverTemplate {
 
     // ── CRE Report Processing ──────────────────────────────────────────
 
-    /// @notice Decodes CRE report and updates compliance state + 8004 Validation Registry
-    /// @param report ABI-encoded: (uint256 agentId, bytes32 requestHash, address wallet,
-    ///        bytes32 policyId, uint8 score, bool compliant, string responseURI,
-    ///        bytes32 responseHash, string tag)
+    /// @notice Dispatches CRE reports by type: 0 = assessment, 1 = policy registration
     function _processReport(bytes calldata report) internal override {
+        uint8 reportType = abi.decode(report, (uint8));
+
+        if (reportType == 0) {
+            _processAssessment(report);
+        } else if (reportType == 1) {
+            _processPolicyRegistration(report);
+        } else {
+            revert InvalidReportType(reportType);
+        }
+    }
+
+    /// @notice Decodes assessment report and updates compliance state + 8004 Validation Registry
+    function _processAssessment(bytes calldata report) internal {
         (
+            ,
             uint256 agentId,
             bytes32 requestHash,
             address wallet,
@@ -74,7 +87,7 @@ contract Sigil is ReceiverTemplate {
             string memory responseURI,
             bytes32 responseHash,
             string memory tag
-        ) = abi.decode(report, (uint256, bytes32, address, bytes32, uint8, bool, string, bytes32, string));
+        ) = abi.decode(report, (uint8, uint256, bytes32, address, bytes32, uint8, bool, string, bytes32, string));
 
         if (score > 100) revert InvalidScore(score);
 
@@ -89,10 +102,37 @@ contract Sigil is ReceiverTemplate {
             lastUpdate: block.timestamp
         });
 
-        validationRegistry.validationResponse(requestHash, score, responseURI, responseHash, tag);
+        try validationRegistry.validationResponse(requestHash, score, responseURI, responseHash, tag) {
+            // Successfully wrote to Validation Registry
+        } catch {
+            emit ValidationRegistrySkipped(requestHash, "no prior validationRequest");
+        }
 
         emit ComplianceUpdated(wallet, policyId, compliant, score);
         emit ReportProcessed(agentId, requestHash, policyId);
+    }
+
+    /// @notice Decodes policy registration report and registers a new policy
+    function _processPolicyRegistration(bytes calldata report) internal {
+        (
+            ,
+            bytes32 id,
+            string memory name,
+            string memory description,
+            bool isPublic
+        ) = abi.decode(report, (uint8, bytes32, string, string, bool));
+
+        if (bytes(policies[id].name).length != 0) revert PolicyAlreadyExists(id);
+
+        policies[id] = Policy({
+            name: name,
+            description: description,
+            isPublic: isPublic,
+            isActive: true,
+            registeredBy: address(this)
+        });
+        policyIds.push(id);
+        emit PolicyRegistered(id, name, address(this));
     }
 
     // ── Core Read ──────────────────────────────────────────────────────

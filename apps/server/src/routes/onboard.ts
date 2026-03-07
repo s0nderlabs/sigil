@@ -1,8 +1,15 @@
-import { verifyApiKey, verifySiwe } from "../middleware/auth.js";
-import { runOnboarding } from "../agents/agent-a.js";
+import { verifyApiKey, verifySiweFromBody } from "../middleware/auth.js";
+import { streamOnboarding } from "../agents/agent-a.js";
 
 export async function handleOnboard(req: Request): Promise<Response> {
   let authenticatedAddress: string;
+  let body: any;
+
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
   // Dev mode: skip SIWE, use API key auth instead
   if (process.env.DEV_MODE === "true") {
@@ -11,35 +18,62 @@ export async function handleOnboard(req: Request): Promise<Response> {
     }
     authenticatedAddress = req.headers.get("x-wallet-address") || "0xDEV";
   } else {
-    const siweResult = await verifySiwe(req);
+    const siweResult = await verifySiweFromBody(body);
     if (!siweResult) {
       return Response.json({ error: "Unauthorized — SIWE verification failed" }, { status: 401 });
     }
     authenticatedAddress = siweResult.address;
   }
 
-  try {
-    const body = await req.json();
-    const userMessage = body.message || body.prompt;
+  const userMessage = body.prompt;
+  const sessionId = body.sessionId;
 
-    if (!userMessage) {
-      return Response.json({ error: "No message provided" }, { status: 400 });
-    }
-
-    const stream = await runOnboarding(userMessage);
-
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Transfer-Encoding": "chunked",
-        "X-Authenticated-Address": authenticatedAddress,
-      },
-    });
-  } catch (err) {
-    console.error("Onboard error:", err);
-    return Response.json(
-      { error: "Onboarding failed", details: err instanceof Error ? err.message : "Unknown error" },
-      { status: 500 }
-    );
+  if (!userMessage) {
+    return Response.json({ error: "No message provided" }, { status: 400 });
   }
+
+  const encoder = new TextEncoder();
+  const generator = streamOnboarding({
+    userMessage,
+    sessionId,
+    authenticatedAddress,
+  });
+
+  let closed = false;
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const chunk of generator) {
+          if (closed) break;
+          controller.enqueue(encoder.encode(chunk));
+        }
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Unknown error";
+        console.error("Onboard stream error:", errorMsg);
+        if (!closed) {
+          try {
+            controller.enqueue(
+              encoder.encode(`event: error\ndata: ${JSON.stringify({ error: errorMsg })}\n\n`)
+            );
+          } catch { /* controller already closed */ }
+        }
+      } finally {
+        if (!closed) {
+          closed = true;
+          try { controller.close(); } catch { /* already closed */ }
+        }
+      }
+    },
+    cancel() {
+      closed = true;
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }

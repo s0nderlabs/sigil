@@ -44,7 +44,7 @@ contract SigilTest is Test {
         bytes32 responseHash,
         string memory tag
     ) internal pure returns (bytes memory) {
-        return abi.encode(agentId, requestHash, wallet, _policyId, score, compliant, responseURI, responseHash, tag);
+        return abi.encode(uint8(0), agentId, requestHash, wallet, _policyId, score, compliant, responseURI, responseHash, tag);
     }
 
     function _defaultReport(address wallet, uint8 score, bool compliant) internal view returns (bytes memory) {
@@ -317,11 +317,13 @@ contract SigilTest is Test {
 
     // ── Registry Failure Test ───────────────────────────────────────────
 
-    function test_processReport_revert_registryCallFails() public {
+    function test_processReport_registryFailure_emitsSkipped() public {
         registry.setShouldRevert(true);
-        vm.prank(forwarder);
-        vm.expectRevert("MockRevert");
-        sigil.onReport("", _defaultReport(alice, 85, true));
+        vm.expectEmit(true, false, false, true);
+        emit Sigil.ValidationRegistrySkipped(REQUEST_HASH, "no prior validationRequest");
+        _callOnReport(_defaultReport(alice, 85, true));
+        // Compliance status should still be updated despite registry failure
+        assertTrue(sigil.isCompliant(alice, policyId));
     }
 
     // ── Fuzz Tests ──────────────────────────────────────────────────────

@@ -8,6 +8,14 @@ export function verifyApiKey(req: Request): boolean {
 export async function verifySiwe(req: Request): Promise<{ address: string } | null> {
   try {
     const body = await req.clone().json();
+    return verifySiweFromBody(body);
+  } catch {
+    return null;
+  }
+}
+
+export async function verifySiweFromBody(body: any): Promise<{ address: string } | null> {
+  try {
     const { message, signature } = body;
     if (!message || !signature) return null;
 

@@ -15,34 +15,66 @@ function createAgentATools() {
   return tools;
 }
 
-export async function runOnboarding(userMessage: string): Promise<ReadableStream> {
+/**
+ * Streams onboarding responses as SSE-formatted strings.
+ * Yields: event:session, event:delta, event:done, event:error
+ */
+export async function* streamOnboarding(params: {
+  userMessage: string;
+  sessionId?: string;
+  authenticatedAddress: string;
+}): AsyncGenerator<string> {
   const tools = createAgentATools();
   const server = createSdkMcpServer({ name: "sigil-agent-a", tools });
 
-  const stream = new ReadableStream({
-    async start(controller) {
-      try {
-        for await (const message of query({
-          prompt: userMessage,
-          options: {
-            model: "claude-sonnet-4-6",
-            systemPrompt: AGENT_A_SYSTEM_PROMPT,
-            mcpServers: { "sigil-tools": server },
-            maxTurns: 15,
-            permissionMode: "bypassPermissions",
-            allowDangerouslySkipPermissions: true,
-          },
-        })) {
-          if ("result" in message) {
-            controller.enqueue(new TextEncoder().encode(message.result));
-          }
-        }
-        controller.close();
-      } catch (err) {
-        controller.error(err);
-      }
-    },
-  });
+  const systemPrompt = `${AGENT_A_SYSTEM_PROMPT}\n\n## Session Context\nThe authenticated wallet address is: ${params.authenticatedAddress}. Use this as registeredBy when saving policies.`;
 
-  return stream;
+  const isResume = !!params.sessionId;
+
+  const options: Record<string, unknown> = {
+    model: process.env.CLAUDE_MODEL || "claude-opus-4-6",
+    maxThinkingTokens: 10000,
+    systemPrompt,
+    mcpServers: { "sigil-tools": server },
+    maxTurns: 15,
+    permissionMode: "bypassPermissions",
+    allowDangerouslySkipPermissions: true,
+    persistSession: true,
+  };
+
+  if (isResume) {
+    options.resume = params.sessionId;
+  }
+
+  let sessionId = params.sessionId || "";
+  let fullText = "";
+
+  for await (const msg of query({ prompt: params.userMessage, options: options as any })) {
+    const m = msg as any;
+
+    // Session init — emit sessionId
+    if (m.type === "system" && m.subtype === "init") {
+      sessionId = m.session_id;
+      yield `event: session\ndata: ${JSON.stringify({ sessionId })}\n\n`;
+    }
+
+    // Stream events — extract text deltas from top-level assistant messages
+    if (m.type === "stream_event" && m.parent_tool_use_id === null) {
+      const evt = m.event;
+      if (
+        evt?.type === "content_block_delta" &&
+        evt?.delta?.type === "text_delta" &&
+        evt?.delta?.text
+      ) {
+        fullText += evt.delta.text;
+        yield `event: delta\ndata: ${JSON.stringify({ text: evt.delta.text })}\n\n`;
+      }
+    }
+
+    // Final result
+    if (m.type === "result") {
+      const resultText = m.result || fullText;
+      yield `event: done\ndata: ${JSON.stringify({ result: resultText, sessionId })}\n\n`;
+    }
+  }
 }

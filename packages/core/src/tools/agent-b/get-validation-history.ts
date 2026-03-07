@@ -5,7 +5,7 @@ import { SEPOLIA_ADDRESSES } from "../../constants/addresses.js";
 import { type ToolDefinition, toolResponse } from "../types.js";
 
 const VALIDATION_RESPONSE_EVENT = parseAbiItem(
-  "event ValidationResponse(address indexed validator, bytes32 indexed requestHash, uint8 response, string responseURI, bytes32 responseHash, string tag)"
+  "event ValidationResponse(address indexed validatorAddress, uint256 indexed agentId, bytes32 indexed requestHash, uint8 response, string responseURI, bytes32 responseHash, string tag)"
 );
 
 export const getValidationHistory: ToolDefinition = {
@@ -17,6 +17,10 @@ export const getValidationHistory: ToolDefinition = {
       .string()
       .optional()
       .describe("Validator address to filter by (optional)"),
+    agentId: z
+      .number()
+      .optional()
+      .describe("Agent token ID to filter by (optional)"),
     requestHash: z
       .string()
       .optional()
@@ -33,6 +37,7 @@ export const getValidationHistory: ToolDefinition = {
     let toBlock = latestBlock;
     const validations: {
       validator: string | undefined;
+      agentId: number | undefined;
       requestHash: string | undefined;
       response: number | undefined;
       responseURI: string | undefined;
@@ -48,8 +53,11 @@ export const getValidationHistory: ToolDefinition = {
         address: SEPOLIA_ADDRESSES.validationRegistry as `0x${string}`,
         event: VALIDATION_RESPONSE_EVENT,
         args: {
-          validator: args.validator
+          validatorAddress: args.validator
             ? (args.validator as `0x${string}`)
+            : undefined,
+          agentId: args.agentId
+            ? BigInt(args.agentId)
             : undefined,
           requestHash: args.requestHash
             ? (args.requestHash as `0x${string}`)
@@ -60,7 +68,8 @@ export const getValidationHistory: ToolDefinition = {
       });
       for (const log of logs) {
         validations.push({
-          validator: log.args.validator,
+          validator: log.args.validatorAddress,
+          agentId: log.args.agentId != null ? Number(log.args.agentId) : undefined,
           requestHash: log.args.requestHash,
           response: log.args.response,
           responseURI: log.args.responseURI,

@@ -1,15 +1,7 @@
 import { z } from "zod";
-import {
-  createWalletClient,
-  http,
-  encodePacked,
-  keccak256,
-} from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { sepolia } from "viem/chains";
+import { encodePacked, keccak256 } from "viem";
+import { resolve } from "path";
 import { createSupabaseClient } from "../../clients/supabase.js";
-import { SIGIL_ABI } from "../../constants/abis.js";
-import { SEPOLIA_ADDRESSES } from "../../constants/addresses.js";
 import { type ToolDefinition, toolResponse } from "../types.js";
 
 const ruleSchema = z.object({
@@ -21,7 +13,7 @@ const ruleSchema = z.object({
 export const savePolicy: ToolDefinition = {
   name: "save_policy",
   description:
-    "Register a policy on-chain via the Sigil middleware contract and save it to the database. Requires rules to have been created first via create_rule.",
+    "Register a policy on-chain via CRE and save it to the database. Requires rules to have been created first via create_rule.",
   inputSchema: z.object({
     name: z.string().describe("Policy name"),
     description: z.string().describe("Policy description"),
@@ -38,14 +30,9 @@ export const savePolicy: ToolDefinition = {
       .describe("Address of the protocol registering this policy"),
   }),
   handler: async (args) => {
-    const privateKey = process.env.DEPLOYER_PRIVATE_KEY;
-    if (!privateKey) {
-      return toolResponse({ error: "DEPLOYER_PRIVATE_KEY not set" });
-    }
-
-    const sigilAddress = SEPOLIA_ADDRESSES.sigilMiddleware;
-    if (!sigilAddress) {
-      return toolResponse({ error: "Sigil middleware address not configured" });
+    const creKey = process.env.CRE_ETH_PRIVATE_KEY;
+    if (!creKey) {
+      return toolResponse({ error: "CRE_ETH_PRIVATE_KEY not set" });
     }
 
     // Compute policyId = keccak256(abi.encodePacked(registeredBy, name))
@@ -56,28 +43,45 @@ export const savePolicy: ToolDefinition = {
       )
     );
 
-    // Register on-chain
-    const account = privateKeyToAccount(privateKey as `0x${string}`);
-    const wallet = createWalletClient({
-      account,
-      chain: sepolia,
-      transport: http(
-        process.env.ALCHEMY_RPC_URL ||
-          "https://ethereum-sepolia-rpc.publicnode.com"
-      ),
+    // Register on-chain via CRE
+    const creBin = process.env.CRE_BIN || resolve(process.env.HOME || "~", ".cre/bin/cre");
+    const creDir = process.env.CRE_PROJECT_DIR || resolve(import.meta.dir, "../../../../../sigil-cre");
+
+    const httpPayload = JSON.stringify({
+      type: "register_policy",
+      policyId,
+      name: args.name,
+      description: args.description,
+      isPublic: args.isPublic,
     });
 
-    const txHash = await wallet.writeContract({
-      address: sigilAddress as `0x${string}`,
-      abi: SIGIL_ABI,
-      functionName: "registerPolicy",
-      args: [
-        policyId as `0x${string}`,
-        args.name,
-        args.description,
-        args.isPublic,
-      ],
+    const proc = Bun.spawn([
+      creBin, "workflow", "simulate", "sigil-assessment",
+      "--non-interactive", "--trigger-index", "0",
+      "--http-payload", httpPayload,
+      "--target", "staging-settings", "--broadcast",
+    ], {
+      cwd: creDir,
+      env: { ...process.env, CRE_ETH_PRIVATE_KEY: creKey, AI_SERVICE_API_KEY: process.env.SIGIL_API_KEY || "" },
+      stdout: "pipe",
+      stderr: "pipe",
     });
+
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+
+    console.log("[save-policy] CRE exit code:", exitCode);
+    if (exitCode !== 0) {
+      console.error("[save-policy] CRE stdout:", stdout.slice(0, 500));
+      if (stderr) console.error("[save-policy] CRE stderr:", stderr.slice(0, 500));
+      return toolResponse({
+        error: "CRE policy registration failed",
+        details: stderr || stdout,
+      });
+    }
 
     // Save to Supabase
     const supabase = createSupabaseClient();
@@ -89,17 +93,15 @@ export const savePolicy: ToolDefinition = {
       is_active: true,
       registered_by: args.registeredBy,
       rules: args.rules,
-      tx_hash: txHash,
     });
 
     if (dbError) {
       return toolResponse({
         policyId,
-        txHash,
-        warning: `On-chain tx sent but database save failed: ${dbError.message}`,
+        warning: `On-chain registration succeeded but database save failed: ${dbError.message}`,
       });
     }
 
-    return toolResponse({ policyId, txHash });
+    return toolResponse({ policyId, registered: true });
   },
 };

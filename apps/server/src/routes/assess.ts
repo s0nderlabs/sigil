@@ -24,19 +24,26 @@ export async function handleAssess(req: Request): Promise<Response> {
       ? JSON.parse(raw)
       : JSON.parse(atob(raw));
 
-    // Normalize bytes32 hex policyId to string for Supabase lookup
-    let lookupId = body.policyId;
-    if (lookupId.startsWith("0x") && lookupId.length === 66) {
-      const hex = lookupId.slice(2).replace(/(00)+$/, "");
-      lookupId = Buffer.from(hex, "hex").toString("utf8");
-    }
-
     const supabase = createSupabaseClient();
-    const { data: policy, error } = await supabase
+
+    // Try exact match first (keccak256 policyIds stored as hex strings)
+    let lookupId = body.policyId;
+    let { data: policy, error } = await supabase
       .from("policies")
       .select("id, name, rules, is_active")
       .eq("id", lookupId)
       .single();
+
+    // Fallback: normalize bytes32 hex to string (for string-based policyIds padded to bytes32)
+    if ((error || !policy) && lookupId.startsWith("0x") && lookupId.length === 66) {
+      const hex = lookupId.slice(2).replace(/(00)+$/, "");
+      const normalized = Buffer.from(hex, "hex").toString("utf8");
+      ({ data: policy, error } = await supabase
+        .from("policies")
+        .select("id, name, rules, is_active")
+        .eq("id", normalized)
+        .single());
+    }
 
     if (error || !policy) {
       return Response.json({ error: "Policy not found" }, { status: 404 });

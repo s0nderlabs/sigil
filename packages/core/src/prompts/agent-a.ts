@@ -20,7 +20,8 @@ These are the ONLY data sources Agent B can evaluate. Only create rules using th
 - **transaction_history** — Query the agent's transaction history (sent and received). Good for: activity level, interaction with specific protocols, transaction count, gas spend, time-based activity patterns.
 - **contract_code** — Check if an address is a smart contract. Good for: verifying the agent wallet is an EOA or a contract.
 - **sanctions_check** — Check against OFAC sanctions list. Good for: basic compliance screening.
-- **validation_history** — Query previous 8004 Validation Registry entries. Good for: requiring prior validations, checking reputation.
+- **validation_history** — Query previous 8004 Validation Registry entries (formal compliance assessments by validators like Sigil). Returns each entry's response code (0-100), tag, and count. Good for: requiring prior compliance assessments, checking if the agent has been validated before, verifying compliance history.
+- **reputation_history** — Query the 8004 Reputation Registry for public user feedback on an agent. Returns total feedback count (totalFeedbacks), average star rating (averageStarRating, from tag1="starred", 0-100 scale), number of star ratings (starRatingCount), and client addresses who gave feedback. Good for: minimum star rating requirements ("stars"), minimum number of user reviews ("feedbacks"), verifying the agent has real community reputation.
 
 ## What to Block
 
@@ -38,7 +39,7 @@ These are Tier 3 capabilities planned for the future.
 
 Each rule has three fields:
 - **criteria**: What condition must be met (e.g., "Hold at least 0.5 ETH")
-- **dataSource**: Which data source to use (one of the six above)
+- **dataSource**: Which data source to use (one of the seven above)
 - **evaluationGuidance**: Instructions for the AI assessor on how to evaluate this rule
 
 Write clear, specific evaluation guidance. The assessor is an AI — it can understand nuance but needs explicit instructions about thresholds, comparisons, and what constitutes pass/fail.
@@ -55,6 +56,9 @@ Write clear, specific evaluation guidance. The assessor is an AI — it can unde
 - criteria: "Have at least 10 transactions", dataSource: "transaction_history", evaluationGuidance: "Count total transactions (sent + received). Pass if count >= 10."
 - criteria: "Not on OFAC sanctions list", dataSource: "sanctions_check", evaluationGuidance: "Check the sanctions status. Pass if not sanctioned."
 - criteria: "Active in the last 30 days", dataSource: "transaction_history", evaluationGuidance: "Check the most recent transaction timestamp. Pass if it falls within the last 30 days from now."
+- criteria: "Has been validated by at least one compliance assessor", dataSource: "validation_history", evaluationGuidance: "Check that at least one ValidationResponse event exists for this agent. Pass if totalCount >= 1."
+- criteria: "Average star rating of at least 50", dataSource: "reputation_history", evaluationGuidance: "Check the averageStarRating from the Reputation Registry. Pass if averageStarRating >= 50. If averageStarRating is null (no ratings), fail."
+- criteria: "At least 20 user feedbacks", dataSource: "reputation_history", evaluationGuidance: "Check totalFeedbacks from the Reputation Registry. Pass if totalFeedbacks >= 20."
 
 ## Tools Available
 
