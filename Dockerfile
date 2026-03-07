@@ -1,9 +1,6 @@
 FROM oven/bun:1 AS base
 
-RUN apt-get update && apt-get install -y curl npm && rm -rf /var/lib/apt/lists/*
-
-# Install Claude Code CLI (required by @anthropic-ai/claude-agent-sdk)
-RUN npm install -g @anthropic-ai/claude-code@latest
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Install CRE CLI (Linux amd64)
 RUN curl -fsSL https://github.com/smartcontractkit/cre-cli/releases/download/v1.2.0/cre_linux_amd64.tar.gz \
@@ -37,6 +34,11 @@ RUN cd packages/core && bun run build
 # Set CRE paths
 ENV CRE_BIN=/usr/local/bin/cre
 ENV CRE_PROJECT_DIR=/app/sigil-cre
+
+# Run as non-root user (required by Claude Code CLI — refuses --dangerously-skip-permissions as root)
+RUN groupadd -r sigil && useradd -r -g sigil -d /home/sigil -m sigil
+RUN chown -R sigil:sigil /app
+USER sigil
 
 EXPOSE 3001
 
