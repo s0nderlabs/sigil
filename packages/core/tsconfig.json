@@ -3,9 +3,14 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
     "composite": true,
     "declaration": true,
     "declarationMap": true,
+    "skipLibCheck": true,
+    "noEmitOnError": false,
     "incremental": true,
     "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
   },

@@ -1,0 +1,9 @@
+{
+  "buildCommand": "bun run --cwd packages/core build && bun run --cwd apps/web build",
+  "installCommand": "bun install",
+  "outputDirectory": "apps/web/.next",
+  "framework": "nextjs",
+  "git": {
+    "deploymentEnabled": false
+  }
+}

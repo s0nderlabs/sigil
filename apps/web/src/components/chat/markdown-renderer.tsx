@@ -112,7 +112,7 @@ export function MarkdownRenderer({ content, isAnimating = false }: MarkdownRende
       <div className="markdown-renderer font-body text-[15px] lg:text-base max-w-2xl">
         <Streamdown
           isAnimating={isAnimating}
-          components={{ h1, h2, h3, p, ul, ol, li, blockquote, a, strong, em, table, thead, th, td, hr }}
+          components={{ h1, h2, h3, p, ul, ol, li, blockquote, a, strong, em, table, thead, th, td, hr } as any}
         >
           {content}
         </Streamdown>

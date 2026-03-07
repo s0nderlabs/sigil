@@ -1,0 +1,15 @@
+node_modules
+.next
+dist
+*.tsbuildinfo
+.DS_Store
+.git
+.claude
+.env
+.env.local
+.env*.local
+contracts
+apps/web
+sigil-cre/sigil-assessment/node_modules
+sigil-cre/sigil-assessment/dist
+sigil-cre/sigil-assessment/.cre_build_tmp*

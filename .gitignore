@@ -31,3 +31,4 @@ CLAUDE.md
 
 # Misc
 *.log
+.vercel

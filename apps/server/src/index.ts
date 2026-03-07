@@ -6,7 +6,11 @@ import { handleGetPolicies } from "./routes/policies.js";
 import { handleGetAssessments } from "./routes/assessments.js";
 
 const PORT = Number(process.env.PORT) || 3001;
-const ALLOWED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"];
+const ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  ...(process.env.ALLOWED_ORIGIN ? [process.env.ALLOWED_ORIGIN] : []),
+];
 
 function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("origin") || "";
