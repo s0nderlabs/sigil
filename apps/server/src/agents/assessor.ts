@@ -1,7 +1,7 @@
 import { query, tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
 import type { AssessmentResult } from "@sigil/core/types";
 import type { Rule } from "@sigil/core/types";
-import { AGENT_B_SYSTEM_PROMPT } from "@sigil/core/prompts";
+import { ASSESSOR_SYSTEM_PROMPT } from "@sigil/core/prompts";
 
 import {
   getEthBalance,
@@ -12,9 +12,9 @@ import {
   getValidationHistory,
   getReputationHistory,
   pinEvidence,
-} from "@sigil/core/tools/agent-b";
+} from "@sigil/core/tools/assessor";
 
-function createAgentBTools(sessionState: Map<string, unknown>) {
+function createAssessorTools(sessionState: Map<string, unknown>) {
   const dataSnapshot: Record<string, unknown> = {};
   sessionState.set("dataSnapshot", dataSnapshot);
 
@@ -91,8 +91,8 @@ export async function runAssessment(params: {
   sessionState.set("requestHash", params.requestHash);
   sessionState.set("wallet", params.onChainData.wallet);
 
-  const tools = createAgentBTools(sessionState);
-  const server = createSdkMcpServer({ name: "sigil-agent-b", tools });
+  const tools = createAssessorTools(sessionState);
+  const server = createSdkMcpServer({ name: "sigil-assessor", tools });
 
   const prompt = buildAssessmentPrompt(params);
 
@@ -101,7 +101,7 @@ export async function runAssessment(params: {
     options: {
       model: process.env.CLAUDE_MODEL || "claude-opus-4-6",
       maxThinkingTokens: 10000,
-      systemPrompt: AGENT_B_SYSTEM_PROMPT,
+      systemPrompt: ASSESSOR_SYSTEM_PROMPT,
       mcpServers: { "sigil-tools": server },
       maxTurns: 25,
       permissionMode: "bypassPermissions",
@@ -138,12 +138,12 @@ export async function runAssessment(params: {
 
       // Check if it's an error
       if (msg.is_error) {
-        throw new Error(`Agent B error after ${msg.num_turns} turns`);
+        throw new Error(`Assessor error after ${msg.num_turns} turns`);
       }
 
-      throw new Error("Agent B returned empty result");
+      throw new Error("Assessor returned empty result");
     }
   }
 
-  throw new Error("Agent B did not produce a result");
+  throw new Error("Assessor did not produce a result");
 }

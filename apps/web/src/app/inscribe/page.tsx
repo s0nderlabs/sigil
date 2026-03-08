@@ -10,7 +10,7 @@ import type { SiweAuth } from "@/hooks/use-siwe";
 const IS_DEV = process.env.NODE_ENV === "development";
 const DEV_AUTH: SiweAuth = { message: "dev", signature: "dev" };
 
-export default function OnboardPage() {
+export default function InscribePage() {
   const { address, isConnected } = useAccount();
   const { siweAuth, isAuthenticating, authError } = useSiweAuth({ enabled: !IS_DEV });
   const { messages, isLoading, error, sendMessage, reset } = useChat();

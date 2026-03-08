@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 const leftLinks = [
-  { href: "/onboard", label: "Onboard" },
+  { href: "/inscribe", label: "Inscribe" },
   { href: "/dashboard", label: "Dashboard" },
 ];
 

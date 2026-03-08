@@ -1,5 +1,5 @@
 import { verifyApiKey } from "../middleware/auth.js";
-import { runAssessment } from "../agents/agent-b.js";
+import { runAssessment } from "../agents/assessor.js";
 import { createSupabaseClient } from "@sigil/core/clients";
 
 export async function handleAssess(req: Request): Promise<Response> {

@@ -1,7 +1,7 @@
 import { verifyApiKey, verifySiweFromBody } from "../middleware/auth.js";
-import { streamOnboarding } from "../agents/agent-a.js";
+import { streamInscribe } from "../agents/scribe.js";
 
-export async function handleOnboard(req: Request): Promise<Response> {
+export async function handleInscribe(req: Request): Promise<Response> {
   let authenticatedAddress: string;
   let body: any;
 
@@ -33,7 +33,7 @@ export async function handleOnboard(req: Request): Promise<Response> {
   }
 
   const encoder = new TextEncoder();
-  const generator = streamOnboarding({
+  const generator = streamInscribe({
     userMessage,
     sessionId,
     authenticatedAddress,
@@ -49,7 +49,7 @@ export async function handleOnboard(req: Request): Promise<Response> {
         }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "Unknown error";
-        console.error("Onboard stream error:", errorMsg);
+        console.error("Inscribe stream error:", errorMsg);
         if (!closed) {
           try {
             controller.enqueue(

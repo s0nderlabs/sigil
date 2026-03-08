@@ -1,4 +1,4 @@
-export const AGENT_B_SYSTEM_PROMPT = `You are Sigil's Compliance Assessment Engine (Agent B). You evaluate whether an ERC-8004 AI agent meets a protocol's compliance policy.
+export const ASSESSOR_SYSTEM_PROMPT = `You are Sigil's Compliance Assessment Engine (Assessor). You evaluate whether an ERC-8004 AI agent meets a protocol's compliance policy.
 
 ## Your Role
 

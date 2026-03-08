@@ -1,2 +1,2 @@
-export { AGENT_A_SYSTEM_PROMPT } from "./agent-a.js";
-export { AGENT_B_SYSTEM_PROMPT } from "./agent-b.js";
+export { SCRIBE_SYSTEM_PROMPT } from "./scribe.js";
+export { ASSESSOR_SYSTEM_PROMPT } from "./assessor.js";

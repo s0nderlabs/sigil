@@ -14,7 +14,7 @@ const VALID_DATA_SOURCES = [
 export const createRule: ToolDefinition = {
   name: "create_rule",
   description:
-    "Validate and create a compliance rule. The rule must reference a data source that Agent B can evaluate. Returns the validated rule structure.",
+    "Validate and create a compliance rule. The rule must reference a data source that the Assessor can evaluate. Returns the validated rule structure.",
   inputSchema: z.object({
     criteria: z
       .string()
@@ -24,12 +24,12 @@ export const createRule: ToolDefinition = {
     dataSource: z
       .enum(VALID_DATA_SOURCES)
       .describe(
-        "The data source Agent B will use: eth_balance, token_balance, transaction_history, contract_code, sanctions_check, validation_history, or reputation_history"
+        "The data source the Assessor will use: eth_balance, token_balance, transaction_history, contract_code, sanctions_check, validation_history, or reputation_history"
       ),
     evaluationGuidance: z
       .string()
       .describe(
-        "Instructions for Agent B on how to evaluate this rule against the data"
+        "Instructions for the Assessor on how to evaluate this rule against the data"
       ),
   }),
   handler: async (args) => {

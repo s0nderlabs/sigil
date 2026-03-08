@@ -1,8 +1,14 @@
 import { z } from "zod";
-import { encodePacked, keccak256 } from "viem";
+import { encodePacked, keccak256, zeroAddress } from "viem";
 import { resolve } from "path";
 import { createSupabaseClient } from "../../clients/supabase.js";
+import { createRpcClient } from "../../clients/rpc.js";
+import { SIGIL_ABI } from "../../constants/abis.js";
+import { SEPOLIA_ADDRESSES } from "../../constants/addresses.js";
 import { type ToolDefinition, toolResponse } from "../types.js";
+
+const ON_CHAIN_VERIFY_ATTEMPTS = 3;
+const ON_CHAIN_VERIFY_DELAY_MS = 5_000;
 
 const ruleSchema = z.object({
   criteria: z.string(),
@@ -80,6 +86,38 @@ export const savePolicy: ToolDefinition = {
       return toolResponse({
         error: "CRE policy registration failed",
         details: stderr || stdout,
+      });
+    }
+
+    // Verify policy exists on-chain before saving to Supabase.
+    // CRE exit code 0 doesn't guarantee the internal onReport() call succeeded,
+    // and the tx may not be in a block yet, so retry a few times.
+    const rpc = createRpcClient();
+    let verified = false;
+    for (let attempt = 1; attempt <= ON_CHAIN_VERIFY_ATTEMPTS; attempt++) {
+      const policy = await rpc.readContract({
+        address: SEPOLIA_ADDRESSES.sigilMiddleware as `0x${string}`,
+        abi: SIGIL_ABI,
+        functionName: "getPolicy",
+        args: [policyId as `0x${string}`],
+      }) as { name: string; description: string; isPublic: boolean; isActive: boolean; registeredBy: string };
+
+      if (policy.registeredBy !== zeroAddress) {
+        console.log("[save-policy] On-chain verification passed:", policy.name);
+        verified = true;
+        break;
+      }
+      console.log(`[save-policy] On-chain verification attempt ${attempt}/${ON_CHAIN_VERIFY_ATTEMPTS}: not found yet`);
+      if (attempt < ON_CHAIN_VERIFY_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, ON_CHAIN_VERIFY_DELAY_MS));
+      }
+    }
+
+    if (!verified) {
+      console.error("[save-policy] On-chain verification failed after retries");
+      return toolResponse({
+        error: "Policy not found on-chain after CRE broadcast (tx may have failed or not been included)",
+        policyId,
       });
     }
 

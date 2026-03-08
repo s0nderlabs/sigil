@@ -18,7 +18,6 @@ import {
   decodeFunctionResult,
   encodeAbiParameters,
   parseAbiParameters,
-  hexToBytes,
   bytesToHex,
   stringToHex,
   zeroAddress,
@@ -83,6 +82,9 @@ const identityRegistryAbi = [
 
 const IDENTITY_REGISTRY = "0x8004A818BFB912233c491871b3d84c89A494BD9e" as const;
 const SEPOLIA_CHAIN_SELECTOR = 16015286601757825753n;
+// onReport() needs ~205K gas for policy registration; estimation is unreliable
+// because the Simulation Forwarder's try/catch makes the revert path appear cheaper
+const WRITE_REPORT_GAS_LIMIT = "500000";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 function toPolicyIdBytes32(policyId: string): Hex {
@@ -125,9 +127,9 @@ function submitReport(
   const report = runtime.report(reportReq).result();
 
   evmClient.writeReport(runtime, {
-    receiver: hexToBytes(sigilAddress as Hex),
+    receiver: sigilAddress,
     report,
-    $report: true,
+    gasConfig: { gasLimit: WRITE_REPORT_GAS_LIMIT },
   }).result();
 
   runtime.log("Report submitted to Sigil contract");

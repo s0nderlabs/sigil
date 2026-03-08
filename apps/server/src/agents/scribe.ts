@@ -1,12 +1,12 @@
 import { query, tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
-import { AGENT_A_SYSTEM_PROMPT } from "@sigil/core/prompts";
+import { SCRIBE_SYSTEM_PROMPT } from "@sigil/core/prompts";
 import {
   getPolicies,
   createRule,
   savePolicy,
-} from "@sigil/core/tools/agent-a";
+} from "@sigil/core/tools/scribe";
 
-function createAgentATools() {
+function createScribeTools() {
   const tools = [getPolicies, createRule, savePolicy].map((def) =>
     tool(def.name, def.description, def.inputSchema.shape, async (args: any) => {
       return await def.handler(args);
@@ -16,18 +16,18 @@ function createAgentATools() {
 }
 
 /**
- * Streams onboarding responses as SSE-formatted strings.
+ * Streams inscribe session responses as SSE-formatted strings.
  * Yields: event:session, event:delta, event:done, event:error
  */
-export async function* streamOnboarding(params: {
+export async function* streamInscribe(params: {
   userMessage: string;
   sessionId?: string;
   authenticatedAddress: string;
 }): AsyncGenerator<string> {
-  const tools = createAgentATools();
-  const server = createSdkMcpServer({ name: "sigil-agent-a", tools });
+  const tools = createScribeTools();
+  const server = createSdkMcpServer({ name: "sigil-scribe", tools });
 
-  const systemPrompt = `${AGENT_A_SYSTEM_PROMPT}\n\n## Session Context\nThe authenticated wallet address is: ${params.authenticatedAddress}. Use this as registeredBy when saving policies.`;
+  const systemPrompt = `${SCRIBE_SYSTEM_PROMPT}\n\n## Session Context\nThe authenticated wallet address is: ${params.authenticatedAddress}. Use this as registeredBy when saving policies.`;
 
   const isResume = !!params.sessionId;
 

@@ -85,7 +85,7 @@ export function useChat() {
       flushIntervalRef.current = setInterval(flushBuffer, 50);
 
       abortRef.current = apiStream(
-        "/onboard",
+        "/inscribe",
         {
           message: siweAuth.message,
           signature: siweAuth.signature,

@@ -1,5 +1,5 @@
 import { handleHealth } from "./routes/health.js";
-import { handleOnboard } from "./routes/onboard.js";
+import { handleInscribe } from "./routes/inscribe.js";
 import { handleAssess } from "./routes/assess.js";
 import { handleTriggerAssessment } from "./routes/trigger-assessment.js";
 import { handleGetPolicies } from "./routes/policies.js";
@@ -37,8 +37,8 @@ Bun.serve({
 
     if (req.method === "GET" && url.pathname === "/health") {
       response = handleHealth(req);
-    } else if (req.method === "POST" && url.pathname === "/onboard") {
-      response = await handleOnboard(req);
+    } else if (req.method === "POST" && url.pathname === "/inscribe") {
+      response = await handleInscribe(req);
     } else if (req.method === "POST" && url.pathname === "/assess") {
       response = await handleAssess(req);
     } else if (req.method === "POST" && url.pathname === "/trigger-assessment") {

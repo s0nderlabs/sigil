@@ -22,13 +22,13 @@
       "types": "./dist/prompts/index.d.ts",
       "import": "./dist/prompts/index.js"
     },
-    "./tools/agent-a": {
-      "types": "./dist/tools/agent-a/index.d.ts",
-      "import": "./dist/tools/agent-a/index.js"
+    "./tools/scribe": {
+      "types": "./dist/tools/scribe/index.d.ts",
+      "import": "./dist/tools/scribe/index.js"
     },
-    "./tools/agent-b": {
-      "types": "./dist/tools/agent-b/index.d.ts",
-      "import": "./dist/tools/agent-b/index.js"
+    "./tools/assessor": {
+      "types": "./dist/tools/assessor/index.d.ts",
+      "import": "./dist/tools/assessor/index.js"
     },
     "./clients": {
       "types": "./dist/clients/index.d.ts",
