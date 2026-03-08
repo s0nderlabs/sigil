@@ -37,14 +37,14 @@ export function Nav() {
   return (
     <nav className="sticky top-0 z-50 flex justify-center px-4 pt-3">
       <div
-        className={`flex items-center justify-center gap-7 px-6 py-2.5 rounded-full border transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        className={`flex items-center justify-center gap-4 sm:gap-7 px-4 sm:px-6 py-2.5 rounded-full border transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           scrolled
             ? "bg-cream/70 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.06)] border-border/60"
             : "bg-transparent backdrop-blur-none shadow-none border-transparent"
         }`}
       >
         {/* Left links */}
-        <div className="hidden sm:flex items-center gap-5">
+        <div className="flex items-center gap-3 sm:gap-5">
           {leftLinks.map((link) => {
             const isActive = pathname === link.href;
             return (
@@ -65,7 +65,7 @@ export function Nav() {
         </Link>
 
         {/* Right links + wallet */}
-        <div className="hidden sm:flex items-center gap-5">
+        <div className="flex items-center gap-3 sm:gap-5">
           {rightLinks.map((link) => {
             const isActive = pathname === link.href;
             return (
