@@ -8,9 +8,10 @@ interface ComplianceStatusProps {
   compliant: boolean;
   evidenceUri: string;
   tag: string;
+  policyName?: string;
 }
 
-export function ComplianceStatus({ score, compliant, evidenceUri, tag }: ComplianceStatusProps) {
+export function ComplianceStatus({ score, compliant, evidenceUri, tag, policyName }: ComplianceStatusProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -18,6 +19,11 @@ export function ComplianceStatus({ score, compliant, evidenceUri, tag }: Complia
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="space-y-5"
     >
+      {/* Policy name */}
+      {policyName && (
+        <h3 className="font-serif text-lg text-ink">{policyName}</h3>
+      )}
+
       {/* Score bar */}
       <div>
         <div className="flex items-center justify-between mb-2">

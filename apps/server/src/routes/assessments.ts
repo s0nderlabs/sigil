@@ -9,7 +9,7 @@ export async function handleGetAssessments(req: Request): Promise<Response> {
     const supabase = createSupabaseClient();
     let query = supabase
       .from("assessments")
-      .select("agent_id, policy_id, request_hash, wallet, score, compliant, evidence_uri, evidence_hash, tag, created_at")
+      .select("id, agent_id, policy_id, request_hash, wallet, score, compliant, evidence_uri, evidence_hash, tag, created_at")
       .order("created_at", { ascending: false })
       .limit(50);
 

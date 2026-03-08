@@ -3,13 +3,15 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEvidence, type EvidenceV1 } from "@/hooks/use-evidence";
+import { CopyButton } from "@/components/copy-button";
 
 interface EvidenceViewerProps {
   evidenceUri: string;
+  autoExpand?: boolean;
 }
 
-export function EvidenceViewer({ evidenceUri }: EvidenceViewerProps) {
-  const [expanded, setExpanded] = useState(false);
+export function EvidenceViewer({ evidenceUri, autoExpand = false }: EvidenceViewerProps) {
+  const [expanded, setExpanded] = useState(autoExpand);
   const { data: evidence, isLoading, error } = useEvidence(
     expanded ? evidenceUri : undefined
   );
@@ -78,13 +80,13 @@ function EvidenceContent({ evidence, uri }: { evidence: EvidenceV1; uri: string 
         <div className="mt-2 grid grid-cols-2 gap-x-8 gap-y-2">
           <MetaRow label="Policy" value={evidence.policyName} />
           <MetaRow label="Agent Id" value={evidence.agentId} />
-          <MetaRow label="Wallet" value={truncate(evidence.wallet)} mono />
+          <MetaRow label="Wallet" value={truncate(evidence.wallet)} mono rawValue={evidence.wallet} />
           <MetaRow label="Chain" value={`Sepolia (${evidence.chainId})`} />
           <MetaRow
             label="Timestamp"
             value={new Date(evidence.timestamp * 1000).toLocaleString()}
           />
-          <MetaRow label="Request Hash" value={truncate(evidence.requestHash)} mono />
+          <MetaRow label="Request Hash" value={truncate(evidence.requestHash)} mono rawValue={evidence.requestHash} />
         </div>
       </div>
 
@@ -117,7 +119,7 @@ function EvidenceContent({ evidence, uri }: { evidence: EvidenceV1; uri: string 
                   {rule.verdict === "pass" ? "Pass" : "Fail"}
                 </span>
                 <span className="font-mono text-xs text-ink-light">
-                  {Math.round(rule.confidence * 100)}% confidence
+                  {Math.round(rule.confidence)}% confidence
                 </span>
               </div>
 
@@ -203,18 +205,23 @@ function MetaRow({
   label,
   value,
   mono,
+  rawValue,
 }: {
   label: string;
   value: string;
   mono?: boolean;
+  rawValue?: string;
 }) {
   return (
-    <div className="flex items-center justify-between py-1.5 border-b border-border/50">
+    <div className="flex items-center justify-between py-1.5 border-b border-border/50 group/meta">
       <span className="font-mono text-xs text-ink-light">{label}</span>
       <span
-        className={`text-sm text-ink ${mono ? "font-mono text-xs" : "font-serif"}`}
+        className={`flex items-center gap-1.5 text-sm text-ink ${mono ? "font-mono text-xs" : "font-serif"}`}
       >
         {value}
+        {rawValue && (
+          <CopyButton value={rawValue} className="opacity-0 group-hover/meta:opacity-100 text-ink-light hover:text-ink" />
+        )}
       </span>
     </div>
   );

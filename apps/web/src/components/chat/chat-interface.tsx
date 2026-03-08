@@ -70,13 +70,13 @@ export function ChatInterface({
       <div ref={scrollRef} className="h-full overflow-y-auto px-4 lg:px-8 pt-6 pb-32">
         <div className="max-w-3xl mx-auto">
           {messages.length === 0 && !isLoading && (
-            <div className="flex flex-col items-center justify-center h-[calc(100%-4rem)] text-center">
-              <p className="font-serif text-2xl text-ink mb-2">
+            <div className="flex flex-col items-center justify-center min-h-[calc(100vh-14rem)] text-center">
+              <p className="font-serif text-3xl text-ink mb-3">
                 Define your compliance policy
               </p>
-              <p className="text-sm text-ink-light max-w-md">
-                Tell me what kind of AI agents your protocol wants to allow, and I&apos;ll
-                help you create the rules to assess them.
+              <p className="text-sm text-ink-light max-w-md leading-relaxed">
+                Describe the kind of AI agents your protocol should allow.
+                Sigil will generate the rules and criteria to assess them.
               </p>
             </div>
           )}
@@ -105,53 +105,47 @@ export function ChatInterface({
       {/* Input bar — pinned to bottom */}
       <div className="absolute bottom-0 left-0 right-0 z-10 px-4 lg:px-8 pt-2 pb-4 bg-gradient-to-t from-cream via-cream to-cream/0">
         <div className="max-w-3xl mx-auto">
-          <div className="rounded-2xl border border-border bg-cream overflow-hidden shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
-            {/* Textarea area */}
-            <div className="px-4 pt-3 pb-2">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Describe your compliance requirements..."
-                disabled={isLoading}
-                rows={1}
-                className="w-full bg-transparent resize-none outline-none font-body text-[15px] lg:text-base min-h-[24px] max-h-[200px] leading-relaxed placeholder:text-ink-light/50 disabled:opacity-50"
-              />
-            </div>
-            {/* Toolbar row */}
-            <div className="flex items-center justify-between px-3 pb-2.5">
-              <div className="flex items-center">
-                {messages.length > 0 && (
-                  <button
-                    onClick={onReset}
-                    className="font-mono text-[11px] text-ink-light hover:text-ink transition-colors px-2 py-1 rounded hover:bg-ink/5"
-                  >
-                    Reset
-                  </button>
-                )}
-              </div>
+          {messages.length > 0 && (
+            <div className="flex justify-start mb-2">
               <button
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-ink text-cream hover:bg-ink/90 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
-                aria-label="Send message"
+                onClick={onReset}
+                className="font-mono text-[11px] text-ink-light hover:text-ink transition-colors px-2 py-1 rounded hover:bg-ink/5"
               >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="12" y1="19" x2="12" y2="5" />
-                  <polyline points="5 12 12 5 19 12" />
-                </svg>
+                Reset conversation
               </button>
             </div>
+          )}
+          <div className="flex items-end gap-3 rounded-xl border border-border bg-cream px-4 py-3 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Describe your compliance requirements..."
+              disabled={isLoading}
+              rows={1}
+              className="flex-1 bg-transparent resize-none outline-none font-serif text-[15px] lg:text-base min-h-[36px] max-h-[200px] leading-relaxed py-[6px] placeholder:text-ink-light/50 disabled:opacity-50"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || isLoading}
+              className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg bg-teal text-cream hover:bg-teal-light disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+              aria-label="Send message"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>

@@ -7,14 +7,15 @@ import "./globals.css";
 const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
   weight: "400",
-  variable: "--font-serif",
+  style: ["normal", "italic"],
+  variable: "--font-display",
   display: "swap",
 });
 
 const sourceSerif4 = Source_Serif_4({
   subsets: ["latin"],
   weight: ["400", "600", "700"],
-  variable: "--font-body",
+  variable: "--font-serif",
   display: "swap",
 });
 

@@ -141,14 +141,14 @@ export function AsciiHero({ children }: Props) {
   }, []);
 
   return (
-    <div ref={containerRef} className="relative w-full h-[80vh] overflow-hidden">
+    <div ref={containerRef} className="relative w-full min-h-screen overflow-hidden">
       <canvas
         ref={canvasRef}
         className="absolute top-0 left-0 pointer-events-none"
       />
       <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-cream to-transparent pointer-events-none z-10" />
       {children && (
-        <div className="absolute inset-0 flex flex-col items-center justify-end pb-16 pointer-events-none z-10">
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
           <div className="pointer-events-auto">{children}</div>
         </div>
       )}

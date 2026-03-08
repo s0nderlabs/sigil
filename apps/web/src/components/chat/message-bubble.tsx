@@ -28,7 +28,7 @@ function UserBubble({ content }: { content: string }) {
     <div ref={ref} className="flex justify-end mb-4">
       <div className="max-w-[80%] lg:max-w-[60%]">
         <div className="rounded-[24px] px-5 py-3 bg-teal text-cream">
-          <p className="font-body text-[15px] lg:text-base leading-relaxed whitespace-pre-wrap break-words">
+          <p className="font-serif text-[15px] lg:text-base leading-relaxed whitespace-pre-wrap break-words">
             {content}
           </p>
         </div>

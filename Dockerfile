@@ -35,6 +35,10 @@ RUN cd packages/core && bun run build
 ENV CRE_BIN=/usr/local/bin/cre
 ENV CRE_PROJECT_DIR=/app/sigil-cre
 
+# Copy entrypoint
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 # Run as non-root user (required by Claude Code CLI — refuses --dangerously-skip-permissions as root)
 RUN groupadd -r sigil && useradd -r -g sigil -d /home/sigil -m sigil
 RUN chown -R sigil:sigil /app
@@ -42,4 +46,4 @@ USER sigil
 
 EXPOSE 3001
 
-CMD ["bun", "run", "apps/server/src/index.ts"]
+ENTRYPOINT ["/app/entrypoint.sh"]
