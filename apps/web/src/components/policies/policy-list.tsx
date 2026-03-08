@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { PolicyDetail } from "./policy-detail";
 import { CopyButton } from "@/components/copy-button";
@@ -74,6 +75,18 @@ export function PolicyList({ policies }: { policies: PolicyRow[] }) {
                 <span className="label-mono">
                   {policy.rules.length} rule{policy.rules.length !== 1 ? "s" : ""}
                 </span>
+                <Link
+                  href={`/policies/${policy.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-ink-light/50 hover:text-teal transition-all opacity-0 group-hover:opacity-100"
+                  title="Open full page"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                </Link>
                 <span
                   className={`transition-transform duration-300 text-ink-light ${
                     expanded === policy.id ? "rotate-45" : ""
@@ -104,7 +117,7 @@ export function PolicyList({ policies }: { policies: PolicyRow[] }) {
                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                 className="overflow-hidden"
               >
-                <PolicyDetail rules={policy.rules} />
+                <PolicyDetail rules={policy.rules} policyId={policy.id} />
               </motion.div>
             )}
           </AnimatePresence>
