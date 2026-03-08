@@ -9,15 +9,26 @@ interface ISigil {
 /// @notice Demonstrates the stamp system: increment() requires isCompliant()
 contract SigilDemo {
     address public immutable sigil;
-    bytes32 public immutable requiredPolicyId;
+    address public owner;
+    bytes32 public requiredPolicyId;
     mapping(address => uint256) public counter;
 
     event Incremented(address indexed user, uint256 newCount);
+    event PolicyUpdated(bytes32 indexed oldPolicyId, bytes32 indexed newPolicyId);
     error NotCompliant(address user, bytes32 policyId);
+    error OnlyOwner();
 
     constructor(address _sigil, bytes32 _requiredPolicyId) {
         sigil = _sigil;
+        owner = msg.sender;
         requiredPolicyId = _requiredPolicyId;
+    }
+
+    function setRequiredPolicy(bytes32 _policyId) external {
+        if (msg.sender != owner) revert OnlyOwner();
+        bytes32 old = requiredPolicyId;
+        requiredPolicyId = _policyId;
+        emit PolicyUpdated(old, _policyId);
     }
 
     function increment() external {
