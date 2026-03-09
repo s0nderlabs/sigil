@@ -1,3 +1,6 @@
+# Dev scripts (demo, local testing)
+dev/
+
 # Dependencies
 node_modules/
 

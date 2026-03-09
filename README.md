@@ -8,6 +8,8 @@ ERC-8004 gives AI agents on-chain identity. But identity alone doesn't mean trus
 
 *"8004 is the passport. Sigil is the stamp."*
 
+![Sigil Homepage](docs/homepage.png)
+
 ---
 
 | | |
