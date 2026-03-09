@@ -1,4 +1,4 @@
-import { handleHealth } from "./routes/health.js";
+import { handleHealth, handleCreHealth } from "./routes/health.js";
 import { handleInscribe } from "./routes/inscribe.js";
 import { handleAssess } from "./routes/assess.js";
 import { handleTriggerAssessment } from "./routes/trigger-assessment.js";
@@ -37,6 +37,8 @@ Bun.serve({
 
     if (req.method === "GET" && url.pathname === "/health") {
       response = handleHealth(req);
+    } else if (req.method === "GET" && url.pathname === "/health/cre") {
+      response = await handleCreHealth(req);
     } else if (req.method === "POST" && url.pathname === "/inscribe") {
       response = await handleInscribe(req);
     } else if (req.method === "POST" && url.pathname === "/assess") {
