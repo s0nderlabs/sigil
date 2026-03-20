@@ -86,12 +86,37 @@ export async function handleTriggerAssessment(req: Request): Promise<Response> {
       }) as Promise<string>,
     ]);
 
-    // Verify signer is the agent wallet
+    // Verify signer is the agent wallet (ECDSA match or Smart Account owner)
     if (recoveredAddress.toLowerCase() !== agentWallet.toLowerCase()) {
-      return Response.json({
-        error: "unauthorized",
-        message: "Signature does not match the agent wallet for this agentId",
-      }, { status: 403 });
+      // ERC-4337 Smart Account fallback: check if the ECDSA signer is an owner
+      // of the Smart Account registered as the agent wallet (e.g., Safe)
+      let isSmartAccountOwner = false;
+      try {
+        const rpc = createRpcClient();
+        const code = await rpc.getCode({ address: agentWallet as `0x${string}` });
+        if (code && code !== "0x") {
+          isSmartAccountOwner = await rpc.readContract({
+            address: agentWallet as `0x${string}`,
+            abi: [{
+              type: "function", name: "isOwner",
+              inputs: [{ name: "owner", type: "address" }],
+              outputs: [{ name: "", type: "bool" }],
+              stateMutability: "view",
+            }] as const,
+            functionName: "isOwner",
+            args: [recoveredAddress],
+          });
+        }
+      } catch {
+        // Not a Safe or doesn't support isOwner — fall through to rejection
+      }
+
+      if (!isSmartAccountOwner) {
+        return Response.json({
+          error: "unauthorized",
+          message: "Signature does not match the agent wallet for this agentId",
+        }, { status: 403 });
+      }
     }
 
     // Compute requestHash (matches contract's computeRequestHash)
@@ -131,11 +156,15 @@ export async function handleTriggerAssessment(req: Request): Promise<Response> {
       proc.exited,
     ]);
 
+    console.log(`[trigger-assessment] CRE exit code: ${exitCode}`);
+    if (stdout.trim()) console.log(`[trigger-assessment] CRE stdout:\n${stdout}`);
+    if (stderr.trim()) console.error(`[trigger-assessment] CRE stderr:\n${stderr}`);
+
     if (exitCode !== 0) {
-      console.error("[trigger-assessment] CRE failed:", stderr || stdout);
       return Response.json({
         error: "assessment_failed",
         message: "CRE workflow failed",
+        details: (stderr || stdout).slice(-500),
       }, { status: 500 });
     }
 

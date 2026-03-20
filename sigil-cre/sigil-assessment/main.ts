@@ -9,7 +9,7 @@ import {
   decodeJson,
   encodeCallMsg,
   prepareReportRequest,
-  LAST_FINALIZED_BLOCK_NUMBER,
+  LATEST_BLOCK_NUMBER,
   consensusIdenticalAggregation,
   json,
 } from "@chainlink/cre-sdk";
@@ -102,7 +102,7 @@ function callView(
   const calldata = encodeFunctionData({ abi: identityRegistryAbi, functionName, args });
   const reply = evmClient.callContract(runtime, {
     call: encodeCallMsg({ from: zeroAddress, to: IDENTITY_REGISTRY, data: calldata }),
-    blockNumber: LAST_FINALIZED_BLOCK_NUMBER,
+    blockNumber: LATEST_BLOCK_NUMBER,
   }).result();
   return decodeFunctionResult({
     abi: identityRegistryAbi,
