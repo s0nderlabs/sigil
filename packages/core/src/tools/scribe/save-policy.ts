@@ -49,6 +49,26 @@ export const savePolicy: ToolDefinition = {
       )
     );
 
+    // Check if policy already exists (same wallet + name = same policyId)
+    const rpcCheck = createRpcClient();
+    try {
+      const existing = await rpcCheck.readContract({
+        address: SEPOLIA_ADDRESSES.sigilMiddleware as `0x${string}`,
+        abi: SIGIL_ABI,
+        functionName: "getPolicy",
+        args: [policyId as `0x${string}`],
+      }) as { name: string; registeredBy: string };
+      if (existing.registeredBy !== zeroAddress) {
+        return toolResponse({
+          error: `Policy "${args.name}" already exists with this wallet. Use a different name.`,
+          policyId,
+          existingPolicy: existing.name,
+        });
+      }
+    } catch {
+      // getPolicy reverts if not found — that's expected, continue
+    }
+
     // Register on-chain via CRE
     const creBin = process.env.CRE_BIN || resolve(process.env.HOME || "~", ".cre/bin/cre");
     const creDir = process.env.CRE_PROJECT_DIR || resolve(import.meta.dir, "../../../../../sigil-cre");

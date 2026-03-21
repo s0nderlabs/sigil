@@ -11,11 +11,8 @@ export async function handleInscribe(req: Request): Promise<Response> {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  // Dev mode: skip SIWE, use API key auth instead
-  if (process.env.DEV_MODE === "true") {
-    if (!verifyApiKey(req)) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // API key auth (programmatic/agent access) takes priority, SIWE as fallback (browser)
+  if (verifyApiKey(req)) {
     authenticatedAddress = req.headers.get("x-wallet-address") || "0xDEV";
   } else {
     const siweResult = await verifySiweFromBody(body);

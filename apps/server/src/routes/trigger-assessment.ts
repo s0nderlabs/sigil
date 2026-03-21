@@ -6,6 +6,7 @@ import {
 } from "viem";
 import { IDENTITY_REGISTRY_ABI, VALIDATION_REGISTRY_ABI, SEPOLIA_ADDRESSES } from "@sigil/core/constants";
 import { createSupabaseClient, createRpcClient } from "@sigil/core/clients";
+import { verifyApiKey } from "../middleware/auth.js";
 
 const SELF_DESCRIBING_ERROR = {
   error: "signature_required",
@@ -30,7 +31,6 @@ export async function handleTriggerAssessment(req: Request): Promise<Response> {
   try {
     const body = await req.json() as Record<string, unknown>;
 
-    // Self-describing error if missing fields
     const { agentId, policyId, signature, message } = body as {
       agentId?: string;
       policyId?: string;
@@ -38,86 +38,95 @@ export async function handleTriggerAssessment(req: Request): Promise<Response> {
       message?: string;
     };
 
-    if (!agentId || !policyId || !signature || !message) {
-      return Response.json(SELF_DESCRIBING_ERROR, { status: 400 });
-    }
+    const isApiKeyAuth = verifyApiKey(req);
 
-    // Parse and validate message format: sigil:assess:{agentId}:{policyId}:{timestamp}
-    const parts = (message as string).split(":");
-    if (parts.length < 5 || parts[0] !== "sigil" || parts[1] !== "assess") {
-      return Response.json({
-        error: "invalid_message_format",
-        expected: "sigil:assess:{agentId}:{policyId}:{unix_timestamp}",
-      }, { status: 400 });
-    }
-
-    const msgAgentId = parts[2];
-    // policyId may contain colons (hex), rejoin remaining except last part (timestamp)
-    const msgTimestamp = parts[parts.length - 1];
-    const msgPolicyId = parts.slice(3, parts.length - 1).join(":");
-
-    if (msgAgentId !== agentId || msgPolicyId !== policyId) {
-      return Response.json({
-        error: "message_mismatch",
-        message: "agentId and policyId in message must match body fields",
-      }, { status: 400 });
-    }
-
-    // Replay protection: timestamp within 5 minutes
-    const timestamp = parseInt(msgTimestamp, 10);
-    if (isNaN(timestamp) || Math.abs(Date.now() - timestamp * 1000) > MAX_MESSAGE_AGE_MS) {
-      return Response.json({
-        error: "message_expired",
-        message: "Timestamp must be within 5 minutes of current time",
-      }, { status: 400 });
-    }
-
-    const rpc = createRpcClient();
-
-    // Recover signer and read agent wallet in parallel (independent operations)
-    const [recoveredAddress, agentWallet] = await Promise.all([
-      recoverMessageAddress({
-        message: message as string,
-        signature: signature as `0x${string}`,
-      }),
-      rpc.readContract({
-        address: SEPOLIA_ADDRESSES.identityRegistry as `0x${string}`,
-        abi: IDENTITY_REGISTRY_ABI,
-        functionName: "getAgentWallet",
-        args: [BigInt(agentId)],
-      }) as Promise<string>,
-    ]);
-
-    // Verify signer is the agent wallet (ECDSA match or Smart Account owner)
-    if (recoveredAddress.toLowerCase() !== agentWallet.toLowerCase()) {
-      // ERC-4337 Smart Account fallback: check if the ECDSA signer is an owner
-      // of the Smart Account registered as the agent wallet (e.g., Safe)
-      let isSmartAccountOwner = false;
-      try {
-        const rpc = createRpcClient();
-        const code = await rpc.getCode({ address: agentWallet as `0x${string}` });
-        if (code && code !== "0x") {
-          isSmartAccountOwner = await rpc.readContract({
-            address: agentWallet as `0x${string}`,
-            abi: [{
-              type: "function", name: "isOwner",
-              inputs: [{ name: "owner", type: "address" }],
-              outputs: [{ name: "", type: "bool" }],
-              stateMutability: "view",
-            }] as const,
-            functionName: "isOwner",
-            args: [recoveredAddress],
-          });
-        }
-      } catch {
-        // Not a Safe or doesn't support isOwner — fall through to rejection
+    // API key auth: only need agentId + policyId, skip EIP-191 signature
+    if (!isApiKeyAuth) {
+      if (!agentId || !policyId || !signature || !message) {
+        return Response.json(SELF_DESCRIBING_ERROR, { status: 400 });
       }
 
-      if (!isSmartAccountOwner) {
+      // Parse and validate message format: sigil:assess:{agentId}:{policyId}:{timestamp}
+      const parts = (message as string).split(":");
+      if (parts.length < 5 || parts[0] !== "sigil" || parts[1] !== "assess") {
         return Response.json({
-          error: "unauthorized",
-          message: "Signature does not match the agent wallet for this agentId",
-        }, { status: 403 });
+          error: "invalid_message_format",
+          expected: "sigil:assess:{agentId}:{policyId}:{unix_timestamp}",
+        }, { status: 400 });
+      }
+
+      const msgAgentId = parts[2];
+      const msgTimestamp = parts[parts.length - 1];
+      const msgPolicyId = parts.slice(3, parts.length - 1).join(":");
+
+      if (msgAgentId !== agentId || msgPolicyId !== policyId) {
+        return Response.json({
+          error: "message_mismatch",
+          message: "agentId and policyId in message must match body fields",
+        }, { status: 400 });
+      }
+
+      // Replay protection: timestamp within 5 minutes
+      const timestamp = parseInt(msgTimestamp, 10);
+      if (isNaN(timestamp) || Math.abs(Date.now() - timestamp * 1000) > MAX_MESSAGE_AGE_MS) {
+        return Response.json({
+          error: "message_expired",
+          message: "Timestamp must be within 5 minutes of current time",
+        }, { status: 400 });
+      }
+
+      const rpc = createRpcClient();
+
+      // Recover signer and read agent wallet in parallel
+      const [recoveredAddress, agentWallet] = await Promise.all([
+        recoverMessageAddress({
+          message: message as string,
+          signature: signature as `0x${string}`,
+        }),
+        rpc.readContract({
+          address: SEPOLIA_ADDRESSES.identityRegistry as `0x${string}`,
+          abi: IDENTITY_REGISTRY_ABI,
+          functionName: "getAgentWallet",
+          args: [BigInt(agentId)],
+        }) as Promise<string>,
+      ]);
+
+      // Verify signer is the agent wallet (ECDSA match or Smart Account owner)
+      if (recoveredAddress.toLowerCase() !== agentWallet.toLowerCase()) {
+        let isSmartAccountOwner = false;
+        try {
+          const code = await rpc.getCode({ address: agentWallet as `0x${string}` });
+          if (code && code !== "0x") {
+            isSmartAccountOwner = await rpc.readContract({
+              address: agentWallet as `0x${string}`,
+              abi: [{
+                type: "function", name: "isOwner",
+                inputs: [{ name: "owner", type: "address" }],
+                outputs: [{ name: "", type: "bool" }],
+                stateMutability: "view",
+              }] as const,
+              functionName: "isOwner",
+              args: [recoveredAddress],
+            });
+          }
+        } catch {
+          // Not a Safe or doesn't support isOwner
+        }
+
+        if (!isSmartAccountOwner) {
+          return Response.json({
+            error: "unauthorized",
+            message: "Signature does not match the agent wallet for this agentId",
+          }, { status: 403 });
+        }
+      }
+    } else {
+      // API key auth — just need agentId + policyId
+      if (!agentId || !policyId) {
+        return Response.json({
+          error: "missing_fields",
+          message: "agentId and policyId are required",
+        }, { status: 400 });
       }
     }
 
@@ -130,8 +139,9 @@ export async function handleTriggerAssessment(req: Request): Promise<Response> {
     );
 
     // Check if validationRequest exists on 8004 Validation Registry
+    const rpcClient = createRpcClient();
     try {
-      await rpc.readContract({
+      await rpcClient.readContract({
         address: SEPOLIA_ADDRESSES.validationRegistry as `0x${string}`,
         abi: VALIDATION_REGISTRY_ABI,
         functionName: "getValidationStatus",
