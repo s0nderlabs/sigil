@@ -28,9 +28,11 @@ export function useChat() {
   });
 
   const streamingContentRef = useRef("");
+  const targetContentRef = useRef("");
   const flushIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamingIdRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const doneRef = useRef(false);
 
   const flushBuffer = useCallback(() => {
     const content = streamingContentRef.current;
@@ -72,7 +74,9 @@ export function useChat() {
       };
 
       streamingContentRef.current = "";
+      targetContentRef.current = "";
       streamingIdRef.current = assistantId;
+      doneRef.current = false;
 
       setState((prev) => ({
         ...prev,
@@ -81,8 +85,31 @@ export function useChat() {
         error: null,
       }));
 
-      // Start 50ms flush interval
-      flushIntervalRef.current = setInterval(flushBuffer, 50);
+      // Progressive reveal: show content char-by-char toward the target
+      const CHARS_PER_TICK = 40;
+      const TICK_MS = 8;
+      flushIntervalRef.current = setInterval(() => {
+        const target = targetContentRef.current;
+        const current = streamingContentRef.current;
+        if (current.length < target.length) {
+          const next = Math.min(current.length + CHARS_PER_TICK, target.length);
+          streamingContentRef.current = target.slice(0, next);
+          flushBuffer();
+        } else if (doneRef.current && current.length >= target.length) {
+          // All content revealed and stream finished
+          stopFlush();
+          streamingIdRef.current = null;
+          setState((prev) => ({
+            ...prev,
+            isLoading: false,
+            messages: prev.messages.map((m) =>
+              m.id === assistantId
+                ? { ...m, content: target, isStreaming: false }
+                : m
+            ),
+          }));
+        }
+      }, TICK_MS);
 
       abortRef.current = apiStream(
         "/inscribe",
@@ -99,44 +126,18 @@ export function useChat() {
             }
 
             if (event === "delta" && data.text) {
-              streamingContentRef.current += data.text;
+              targetContentRef.current += data.text;
             }
 
             if (event === "done") {
               if (data.sessionId) {
                 setState((prev) => ({ ...prev, sessionId: data.sessionId }));
               }
-              // Use character reveal for smooth rendering
-              const fullText = data.result || streamingContentRef.current;
+              const fullText = data.result || targetContentRef.current;
               if (fullText) {
-                let charIndex = 0;
-                const CHARS_PER_TICK = 8;
-                const TICK_MS = 10;
-
-                // Replace the 50ms flush interval with character reveal
-                stopFlush();
-                streamingContentRef.current = "";
-                flushIntervalRef.current = setInterval(() => {
-                  charIndex = Math.min(charIndex + CHARS_PER_TICK, fullText.length);
-                  streamingContentRef.current = fullText.slice(0, charIndex);
-                  flushBuffer();
-
-                  if (charIndex >= fullText.length) {
-                    stopFlush();
-                    streamingIdRef.current = null;
-                    setState((prev) => ({
-                      ...prev,
-                      isLoading: false,
-                      messages: prev.messages.map((m) =>
-                        m.id === assistantId
-                          ? { ...m, content: fullText, isStreaming: false }
-                          : m
-                      ),
-                    }));
-                  }
-                }, TICK_MS);
-                return; // Don't let onDone finalize immediately
+                targetContentRef.current = fullText;
               }
+              doneRef.current = true;
             }
 
             if (event === "error") {
@@ -157,21 +158,7 @@ export function useChat() {
             stopFlush();
           },
           onDone: () => {
-            // If character reveal is running, let it handle finalization
-            if (flushIntervalRef.current) return;
-
-            stopFlush();
-            streamingIdRef.current = null;
-
-            setState((prev) => ({
-              ...prev,
-              isLoading: false,
-              messages: prev.messages.map((m) =>
-                m.id === assistantId
-                  ? { ...m, content: streamingContentRef.current, isStreaming: false }
-                  : m
-              ),
-            }));
+            // Progressive reveal interval handles finalization
           },
         },
         { "x-wallet-address": walletAddress },
