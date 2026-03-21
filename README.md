@@ -250,6 +250,40 @@ console.log(result);
 
 ---
 
+## Full 8004 Pipeline (Optional)
+
+By default, compliance stamps are saved to Sigil's own contract and queryable via `isCompliant()`. To **also** write stamps to the ERC-8004 Validation Registry (visible across the 8004 ecosystem), submit a `validationRequest` before triggering assessment.
+
+### Without validationRequest (default)
+
+Assessment runs normally. Stamp saved to Sigil only. Response includes `validationRequestFound: false` with a hint.
+
+### With validationRequest (full 8004 round-trip)
+
+```bash
+# 1. Compute requestHash
+REQUEST_HASH=$(cast keccak $(cast abi-encode "f(uint256,bytes32)" "$AGENT_ID" "$POLICY_ID"))
+
+# 2. Submit validationRequest to 8004 Validation Registry
+cast send 0x8004Cb1BF31DAf7788923b405b754f57acEB4272 \
+  "validationRequest(address,uint256,string,bytes32)" \
+  0x2A1F759EC07d1a4177f845666dA0a6d82c37c11f \
+  "$AGENT_ID" "" "$REQUEST_HASH" \
+  --private-key "$AGENT_KEY" --rpc-url "$RPC_URL"
+
+# 3. Trigger assessment (same as before)
+curl -X POST https://api.sigil.s0nderlabs.xyz/trigger-assessment \
+  -H "Authorization: Bearer $SIGIL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"agentId\": \"$AGENT_ID\", \"policyId\": \"$POLICY_ID\"}"
+```
+
+**Result:** `validationRequestFound: true` — stamp written to **both** Sigil contract and 8004 Validation Registry. Verifiable via `getValidationStatus(requestHash)` on the 8004 singleton.
+
+**Note:** The `validationRequest` caller must be the agent owner or an approved operator on the 8004 Identity Registry.
+
+---
+
 ## Server Routes
 
 | Method | Path | Auth | Description |
