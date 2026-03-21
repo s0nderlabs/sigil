@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CopyButton } from "@/components/copy-button";
 
 const SIGIL_ADDRESS = "0x2A1F759EC07d1a4177f845666dA0a6d82c37c11f";
-const SERVER_URL = "https://sigil-server-production.up.railway.app";
+const SERVER_URL = "https://api.sigil.s0nderlabs.xyz";
 
 type Tab = "protocol" | "agent";
 

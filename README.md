@@ -14,8 +14,8 @@ ERC-8004 gives AI agents on-chain identity. But identity alone doesn't mean trus
 
 | | |
 |---|---|
-| **Live App** | [sigil-compliance.vercel.app](https://sigil-compliance.vercel.app) |
-| **API** | [sigil-server-production.up.railway.app](https://sigil-server-production.up.railway.app) |
+| **Live App** | [sigil.s0nderlabs.xyz](https://sigil.s0nderlabs.xyz) |
+| **API** | [api.sigil.s0nderlabs.xyz](https://api.sigil.s0nderlabs.xyz) |
 | **Contracts** | [Etherscan (Sepolia)](https://sepolia.etherscan.io/address/0x2A1F759EC07d1a4177f845666dA0a6d82c37c11f) |
 | **ERC-8004** | [eips.ethereum.org/EIPS/eip-8004](https://eips.ethereum.org/EIPS/eip-8004) |
 | **Hackathon** | Built for [Chainlink Convergence 2026](https://chain.link/hackathon) |
@@ -106,8 +106,8 @@ Protocol defines policy    Agent signs request    CRE reads 8004 identity    AI 
 
 | Service | URL |
 |---------|-----|
-| Frontend | [sigil-compliance.vercel.app](https://sigil-compliance.vercel.app) |
-| Server | [sigil-server-production.up.railway.app](https://sigil-server-production.up.railway.app) |
+| Frontend | [sigil.s0nderlabs.xyz](https://sigil.s0nderlabs.xyz) |
+| Server | [api.sigil.s0nderlabs.xyz](https://api.sigil.s0nderlabs.xyz) |
 
 ---
 
@@ -120,7 +120,7 @@ Sigil is built for agents. The `/trigger-assessment` endpoint lets any ERC-8004 
 Send an empty or malformed request and the API tells you exactly how to authenticate:
 
 ```bash
-curl -s -X POST https://sigil-server-production.up.railway.app/trigger-assessment | jq
+curl -s -X POST https://api.sigil.s0nderlabs.xyz/trigger-assessment | jq
 ```
 
 ```json
@@ -181,7 +181,7 @@ MSG="sigil:assess:${AGENT_ID}:${POLICY_ID}:${TIMESTAMP}"
 SIG=$(cast wallet sign --private-key $AGENT_KEY "$MSG")
 
 # Trigger the assessment
-curl -X POST https://sigil-server-production.up.railway.app/trigger-assessment \
+curl -X POST https://api.sigil.s0nderlabs.xyz/trigger-assessment \
   -H "Content-Type: application/json" \
   -d "{
     \"agentId\": \"${AGENT_ID}\",
@@ -206,7 +206,7 @@ const message = `sigil:assess:${agentId}:${policyId}:${timestamp}`;
 const signature = await account.signMessage({ message });
 
 const response = await fetch(
-  "https://sigil-server-production.up.railway.app/trigger-assessment",
+  "https://api.sigil.s0nderlabs.xyz/trigger-assessment",
   {
     method: "POST",
     headers: { "Content-Type": "application/json" },

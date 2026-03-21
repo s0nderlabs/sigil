@@ -64,8 +64,8 @@
     "agent-validation"
   ],
   "endpoints": {
-    "api": "https://sigil-server-production.up.railway.app",
-    "frontend": "https://sigil-compliance.vercel.app",
+    "api": "https://api.sigil.s0nderlabs.xyz",
+    "frontend": "https://sigil.s0nderlabs.xyz",
     "assess": "POST /assess",
     "inscribe": "POST /inscribe",
     "triggerAssessment": "POST /trigger-assessment",
