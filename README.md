@@ -255,9 +255,10 @@ console.log(result);
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `GET` | `/health` | None | Returns `{ "status": "ok" }` |
-| `POST` | `/inscribe` | SIWE or API key (dev mode) | Conversational policy creation via the Scribe. Streams SSE responses. |
+| `POST` | `/inscribe` | API key or SIWE | Conversational policy creation via the Scribe. Streams SSE responses. |
+| `POST` | `/inscribe/auto` | API key or SIWE | Single-shot policy creation. Takes `{name, description, rules, visibility}`, returns JSON with policyId + structured rules. |
 | `POST` | `/assess` | API key (`Bearer` token) | Internal: Assessor evaluation. Called by CRE workflow, not directly. |
-| `POST` | `/trigger-assessment` | EIP-191 signature | Agent-facing: sign message → trigger CRE flow → get result. See [Agent API](#agent-api). |
+| `POST` | `/trigger-assessment` | API key or EIP-191 | Agent-facing: trigger CRE assessment flow. API key skips signature requirement. See [Agent API](#agent-api). |
 | `GET` | `/policies` | None | List all active policies with rules. |
 | `GET` | `/assessments` | None | Query assessment history. Filter: `?agentId=` or `?wallet=`. |
 
@@ -342,8 +343,10 @@ On Railway, the CRE simulation runs on the same container as the server. `/trigg
 Sigil is not a fork or extension of ERC-8004. It is a consumer and the first validator.
 
 - **Reads** from the Identity Registry — `getAgentWallet(agentId)`, `ownerOf(agentId)`, `tokenURI(agentId)`
-- **Attempts writes** to the Validation Registry via `validationResponse()` (see [Current Limitations](#current-limitations))
+- **Reads** from the Reputation Registry — `getClients(agentId)`, `getSummary(agentId)` for agent reputation scoring
+- **Writes** to the Validation Registry via `validationResponse()` — compliance stamps visible in the 8004 ecosystem
 - **Writes** compliance stamps to its own `complianceStatus` mapping — the source of truth for `isCompliant()` queries
+- **Agents rate Sigil** via `giveFeedback()` on the Reputation Registry — closing the reputation loop
 
 The 8004 Validation Registry has been empty since the standard launched. Every registered agent has 0 validations. Sigil is the first to fill it.
 
@@ -478,9 +481,7 @@ cd contracts && forge test
 
 ## Current Limitations
 
-1. **Validation Registry writes skipped** — `Sigil._processAssessment()` calls `validationRegistry.validationResponse()` inside a try/catch. This currently always catches because no prior `validationRequest` exists for the computed `requestHash`. The `ValidationRegistrySkipped` event is emitted. Compliance stamps **are** written to Sigil's own `complianceStatus` mapping and can be queried via `isCompliant()`. Future: submit `validationRequest` before triggering assessment.
-
-2. **CRE simulation mode** — Running as CRE simulation with `--broadcast`, not on a production DON. Consensus is simulated locally but transactions are real on Sepolia.
+1. **CRE simulation mode** — Running as CRE simulation with `--broadcast`, not on a production DON. Consensus is simulated locally but transactions are real on Sepolia.
 
 3. **No stamp expiry** — The `expiresAt` field exists in the `ComplianceStatus` struct but is always set to `0` (never expires). Future: configurable expiry per policy.
 
@@ -495,7 +496,6 @@ cd contracts && forge test
 - **x402 payment protocol** — Pay-per-assessment using the [x402](https://www.x402.org) HTTP payment standard. Agents pay for compliance stamps with on-chain micropayments. No subscriptions, no API keys — just sign and pay.
 - **MCP server** — Agent-native discovery of Sigil's assessment API via [Model Context Protocol](https://modelcontextprotocol.io). Agents discover and invoke compliance assessments without hardcoded URLs.
 - **Production CRE DON** — Deploy to a Chainlink DON for BFT consensus on assessments. Real multi-node execution with tamper-proof guarantees.
-- **Validation Registry integration** — Submit `validationRequest` before assessment so `validationResponse` writes succeed. Full round-trip with ERC-8004.
 - **Stamp expiry** — Configurable `expiresAt` per policy. Time-bounded compliance for evolving trust requirements.
 - **Re-assessment triggers** — Automatic re-assessment on expiry or on-chain events (EVM Log triggers via CRE).
 - **Private rules** — Store compliance rules as CRE Vault DON secrets, invisible to agents being assessed. Protocols define rules only they can see.

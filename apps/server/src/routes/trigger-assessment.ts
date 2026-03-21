@@ -138,7 +138,8 @@ export async function handleTriggerAssessment(req: Request): Promise<Response> {
       )
     );
 
-    // Check if validationRequest exists on 8004 Validation Registry
+    // Check if validationRequest exists on 8004 Validation Registry (non-blocking)
+    let validationRequestFound = true;
     const rpcClient = createRpcClient();
     try {
       await rpcClient.readContract({
@@ -148,13 +149,8 @@ export async function handleTriggerAssessment(req: Request): Promise<Response> {
         args: [requestHash],
       });
     } catch {
-      return Response.json({
-        error: "validation_request_missing",
-        message: "No validationRequest found on the 8004 Validation Registry for this requestHash. Submit a validationRequest before triggering assessment.",
-        requestHash,
-        validationRegistry: SEPOLIA_ADDRESSES.validationRegistry,
-        hint: `Call validationRequest("${SEPOLIA_ADDRESSES.sigilMiddleware}", ${agentId}, "", "${requestHash}") on ${SEPOLIA_ADDRESSES.validationRegistry}`,
-      }, { status: 400 });
+      validationRequestFound = false;
+      console.warn(`[trigger-assessment] No validationRequest for ${requestHash} — stamp will be saved to Sigil only, not 8004 registry`);
     }
 
     // Spawn CRE workflow
@@ -209,6 +205,11 @@ export async function handleTriggerAssessment(req: Request): Promise<Response> {
       .limit(1)
       .single();
 
+    const validationWarning = validationRequestFound ? undefined : {
+      warning: "No validationRequest found — stamp saved to Sigil only. Submit validationRequest to also write to 8004 Validation Registry.",
+      hint: `Call validationRequest("${SEPOLIA_ADDRESSES.sigilMiddleware}", ${agentId}, "", "${requestHash}") on ${SEPOLIA_ADDRESSES.validationRegistry}`,
+    };
+
     if (assessment) {
       return Response.json({
         agentId,
@@ -219,6 +220,8 @@ export async function handleTriggerAssessment(req: Request): Promise<Response> {
         evidenceURI: assessment.evidence_uri,
         evidenceHash: assessment.evidence_hash,
         tag: assessment.tag,
+        validationRequestFound,
+        ...validationWarning,
       });
     }
 
@@ -228,6 +231,8 @@ export async function handleTriggerAssessment(req: Request): Promise<Response> {
       policyId,
       requestHash,
       message: "Assessment submitted on-chain. Query /assessments for results.",
+      validationRequestFound,
+      ...validationWarning,
     });
   } catch (err) {
     // If JSON parsing fails, return self-describing error
