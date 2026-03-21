@@ -1,5 +1,6 @@
 import { handleHealth, handleCreHealth } from "./routes/health.js";
 import { handleInscribe } from "./routes/inscribe.js";
+import { handleAutoInscribe } from "./routes/inscribe-auto.js";
 import { handleAssess } from "./routes/assess.js";
 import { handleTriggerAssessment } from "./routes/trigger-assessment.js";
 import { handleGetPolicies } from "./routes/policies.js";
@@ -41,6 +42,8 @@ Bun.serve({
       response = await handleCreHealth(req);
     } else if (req.method === "POST" && url.pathname === "/inscribe") {
       response = await handleInscribe(req);
+    } else if (req.method === "POST" && url.pathname === "/inscribe/auto") {
+      response = await handleAutoInscribe(req);
     } else if (req.method === "POST" && url.pathname === "/assess") {
       response = await handleAssess(req);
     } else if (req.method === "POST" && url.pathname === "/trigger-assessment") {
