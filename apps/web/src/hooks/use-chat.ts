@@ -106,15 +106,16 @@ export function useChat() {
               if (data.sessionId) {
                 setState((prev) => ({ ...prev, sessionId: data.sessionId }));
               }
-              // If no deltas came through, simulate streaming with character reveal
-              if (data.result && !streamingContentRef.current) {
-                const fullText = data.result;
+              // Use character reveal for smooth rendering
+              const fullText = data.result || streamingContentRef.current;
+              if (fullText) {
                 let charIndex = 0;
-                const CHARS_PER_TICK = 3;
-                const TICK_MS = 12;
+                const CHARS_PER_TICK = 8;
+                const TICK_MS = 10;
 
                 // Replace the 50ms flush interval with character reveal
                 stopFlush();
+                streamingContentRef.current = "";
                 flushIntervalRef.current = setInterval(() => {
                   charIndex = Math.min(charIndex + CHARS_PER_TICK, fullText.length);
                   streamingContentRef.current = fullText.slice(0, charIndex);
@@ -135,8 +136,6 @@ export function useChat() {
                   }
                 }, TICK_MS);
                 return; // Don't let onDone finalize immediately
-              } else if (data.result) {
-                streamingContentRef.current = data.result;
               }
             }
 

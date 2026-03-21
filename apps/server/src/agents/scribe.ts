@@ -5,6 +5,7 @@ import {
   createRule,
   savePolicy,
 } from "@sigil/core/tools/scribe";
+import { buildOpenRouterOptions } from "./agent-config.js";
 
 function createScribeTools() {
   const tools = [getPolicies, createRule, savePolicy].map((def) =>
@@ -32,14 +33,14 @@ export async function* streamInscribe(params: {
   const isResume = !!params.sessionId;
 
   const options: Record<string, unknown> = {
-    model: process.env.CLAUDE_MODEL || "claude-opus-4-6",
-    maxThinkingTokens: 10000,
+    ...buildOpenRouterOptions(),
     systemPrompt,
     mcpServers: { "sigil-tools": server },
     maxTurns: 15,
     permissionMode: "bypassPermissions",
     allowDangerouslySkipPermissions: true,
     persistSession: true,
+    includePartialMessages: true,
   };
 
   if (isResume) {
@@ -68,6 +69,15 @@ export async function* streamInscribe(params: {
       ) {
         fullText += evt.delta.text;
         yield `event: delta\ndata: ${JSON.stringify({ text: evt.delta.text })}\n\n`;
+      }
+    }
+
+    // Assistant messages — collect text from content blocks (non-streaming fallback)
+    if (m.type === "assistant" && m.parent_tool_use_id === null && m.message?.content) {
+      for (const block of m.message.content) {
+        if (block.type === "text" && block.text && !fullText) {
+          fullText += block.text;
+        }
       }
     }
 

@@ -1,6 +1,7 @@
 import { verifyApiKey } from "../middleware/auth.js";
 import { runAssessment } from "../agents/assessor.js";
 import { createSupabaseClient } from "@sigil/core/clients";
+import { SEPOLIA_ADDRESSES } from "@sigil/core/constants";
 
 export async function handleAssess(req: Request): Promise<Response> {
   if (!verifyApiKey(req)) {
@@ -71,7 +72,12 @@ export async function handleAssess(req: Request): Promise<Response> {
       tag: result.tag,
     });
 
-    return Response.json(result);
+    return Response.json({
+      ...result,
+      assessorAgentId: SEPOLIA_ADDRESSES.assessorAgentId,
+      reputationRegistry: SEPOLIA_ADDRESSES.reputationRegistry,
+      feedbackHint: `Rate this assessment by calling giveFeedback(${SEPOLIA_ADDRESSES.assessorAgentId || "assessorAgentId"}, rating, 0, 'starred', 'assessor', '', '', bytes32(0)) on ${SEPOLIA_ADDRESSES.reputationRegistry}`,
+    });
   } catch (err) {
     console.error("Assessment error:", err);
     return Response.json(

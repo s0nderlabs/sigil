@@ -62,6 +62,13 @@ export const SIGIL_ABI = [
 export const IDENTITY_REGISTRY_ABI = [
   {
     type: "function",
+    name: "register",
+    inputs: [{ name: "tokenURI", type: "string" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "getAgentWallet",
     inputs: [{ name: "agentId", type: "uint256" }],
     outputs: [{ name: "", type: "address" }],
@@ -86,6 +93,18 @@ export const IDENTITY_REGISTRY_ABI = [
 export const VALIDATION_REGISTRY_ABI = [
   {
     type: "function",
+    name: "validationRequest",
+    inputs: [
+      { name: "validatorAddress", type: "address" },
+      { name: "agentId", type: "uint256" },
+      { name: "requestURI", type: "string" },
+      { name: "requestHash", type: "bytes32" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "validationResponse",
     inputs: [
       { name: "requestHash", type: "bytes32" },
@@ -96,6 +115,20 @@ export const VALIDATION_REGISTRY_ABI = [
     ],
     outputs: [],
     stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "getValidationStatus",
+    inputs: [{ name: "requestHash", type: "bytes32" }],
+    outputs: [
+      { name: "validatorAddress", type: "address" },
+      { name: "agentId", type: "uint256" },
+      { name: "response", type: "uint8" },
+      { name: "responseHash", type: "bytes32" },
+      { name: "tag", type: "string" },
+      { name: "lastUpdate", type: "uint256" },
+    ],
+    stateMutability: "view",
   },
   {
     type: "event",
@@ -109,5 +142,47 @@ export const VALIDATION_REGISTRY_ABI = [
       { name: "responseHash", type: "bytes32", indexed: false },
       { name: "tag", type: "string", indexed: false },
     ],
+  },
+] as const;
+
+export const REPUTATION_REGISTRY_ABI = [
+  {
+    type: "function",
+    name: "giveFeedback",
+    inputs: [
+      { name: "agentId", type: "uint256" },
+      { name: "value", type: "int128" },
+      { name: "decimals", type: "uint8" },
+      { name: "tag1", type: "string" },
+      { name: "tag2", type: "string" },
+      { name: "tag3", type: "string" },
+      { name: "tag4", type: "string" },
+      { name: "referenceHash", type: "bytes32" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "getClients",
+    inputs: [{ name: "agentId", type: "uint256" }],
+    outputs: [{ name: "", type: "address[]" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getSummary",
+    inputs: [
+      { name: "agentId", type: "uint256" },
+      { name: "clientAddresses", type: "address[]" },
+      { name: "tag1", type: "string" },
+      { name: "tag2", type: "string" },
+    ],
+    outputs: [
+      { name: "count", type: "uint64" },
+      { name: "summaryValue", type: "int128" },
+      { name: "summaryValueDecimals", type: "uint8" },
+    ],
+    stateMutability: "view",
   },
 ] as const;

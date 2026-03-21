@@ -1,0 +1,76 @@
+{
+  "name": "Sigil Compliance Validator",
+  "version": "1.0.0",
+  "description": "CRE-powered compliance layer for the ERC-8004 agent economy. Protocols define rules, agents get stamped, stamps live on-chain in 8004's Validation Registry. Two-agent system: Scribe (policy onboarding) and Assessor (compliance evaluation).",
+  "operator": {
+    "wallet": "0xC635e6Eb223aE14143E23cEEa9440bC773dc87Ec",
+    "chain": "ethereum-sepolia",
+    "chainId": 11155111
+  },
+  "agents": [
+    {
+      "name": "Scribe",
+      "role": "Policy Onboarder",
+      "description": "Conversational AI agent that helps protocols define compliance rules through natural language. Translates requirements into structured rule sets and registers policies on-chain.",
+      "erc8004Identity": "",
+      "tools": ["get_policies", "create_rule", "save_policy"],
+      "computeConstraints": {
+        "maxTurns": 15
+      }
+    },
+    {
+      "name": "Assessor",
+      "role": "Compliance Evaluator",
+      "description": "Autonomous assessment agent that evaluates agents against policy rules using on-chain data, transaction history, and AI reasoning. Pins evidence to IPFS and writes compliance stamps to the 8004 Validation Registry.",
+      "erc8004Identity": "",
+      "tools": [
+        "get_eth_balance",
+        "get_token_balance",
+        "get_transaction_history",
+        "check_contract_code",
+        "check_sanctions",
+        "get_validation_history",
+        "get_reputation_history",
+        "pin_evidence"
+      ],
+      "computeConstraints": {
+        "maxTurns": 25
+      }
+    }
+  ],
+  "erc8004": {
+    "registries": {
+      "identity": {
+        "address": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+        "usage": ["read: agent identity lookup during assessment", "write: register Scribe + Assessor agents"]
+      },
+      "validation": {
+        "address": "0x8004Cb1BF31DAf7788923b405b754f57acEB4272",
+        "usage": ["read: check existing stamps", "write: agent submits validationRequest, Sigil writes validationResponse"]
+      },
+      "reputation": {
+        "address": "0x8004B663056A597Dffe9eCcC1965A193B7388713",
+        "usage": ["read: agent reputation scoring during assessment", "write: agents and protocols rate Scribe + Assessor"]
+      }
+    }
+  },
+  "contracts": {
+    "sigilMiddleware": "0x2A1F759EC07d1a4177f845666dA0a6d82c37c11f",
+    "sigilDemo": "0xec1EbB23162888bE120f66Fc7341239256F1c473"
+  },
+  "taskCategories": [
+    "compliance-assessment",
+    "policy-onboarding",
+    "agent-validation"
+  ],
+  "endpoints": {
+    "api": "https://sigil-server-production.up.railway.app",
+    "frontend": "https://sigil-compliance.vercel.app",
+    "assess": "POST /assess",
+    "inscribe": "POST /inscribe",
+    "triggerAssessment": "POST /trigger-assessment",
+    "policies": "GET /policies",
+    "assessments": "GET /assessments"
+  },
+  "github": "https://github.com/s0nderlabs/sigil"
+}

@@ -2,6 +2,7 @@ import { query, tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk"
 import type { AssessmentResult } from "@sigil/core/types";
 import type { Rule } from "@sigil/core/types";
 import { ASSESSOR_SYSTEM_PROMPT } from "@sigil/core/prompts";
+import { buildOpenRouterOptions } from "./agent-config.js";
 
 import {
   getEthBalance,
@@ -99,8 +100,7 @@ export async function runAssessment(params: {
   for await (const message of query({
     prompt,
     options: {
-      model: process.env.CLAUDE_MODEL || "claude-opus-4-6",
-      maxThinkingTokens: 10000,
+      ...buildOpenRouterOptions(),
       systemPrompt: ASSESSOR_SYSTEM_PROMPT,
       mcpServers: { "sigil-tools": server },
       maxTurns: 25,

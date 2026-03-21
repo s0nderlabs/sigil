@@ -4,7 +4,7 @@ import {
   encodePacked,
   recoverMessageAddress,
 } from "viem";
-import { IDENTITY_REGISTRY_ABI, SEPOLIA_ADDRESSES } from "@sigil/core/constants";
+import { IDENTITY_REGISTRY_ABI, VALIDATION_REGISTRY_ABI, SEPOLIA_ADDRESSES } from "@sigil/core/constants";
 import { createSupabaseClient, createRpcClient } from "@sigil/core/clients";
 
 const SELF_DESCRIBING_ERROR = {
@@ -72,13 +72,15 @@ export async function handleTriggerAssessment(req: Request): Promise<Response> {
       }, { status: 400 });
     }
 
+    const rpc = createRpcClient();
+
     // Recover signer and read agent wallet in parallel (independent operations)
     const [recoveredAddress, agentWallet] = await Promise.all([
       recoverMessageAddress({
         message: message as string,
         signature: signature as `0x${string}`,
       }),
-      createRpcClient().readContract({
+      rpc.readContract({
         address: SEPOLIA_ADDRESSES.identityRegistry as `0x${string}`,
         abi: IDENTITY_REGISTRY_ABI,
         functionName: "getAgentWallet",
@@ -126,6 +128,24 @@ export async function handleTriggerAssessment(req: Request): Promise<Response> {
         [BigInt(agentId), policyId as `0x${string}`]
       )
     );
+
+    // Check if validationRequest exists on 8004 Validation Registry
+    try {
+      await rpc.readContract({
+        address: SEPOLIA_ADDRESSES.validationRegistry as `0x${string}`,
+        abi: VALIDATION_REGISTRY_ABI,
+        functionName: "getValidationStatus",
+        args: [requestHash],
+      });
+    } catch {
+      return Response.json({
+        error: "validation_request_missing",
+        message: "No validationRequest found on the 8004 Validation Registry for this requestHash. Submit a validationRequest before triggering assessment.",
+        requestHash,
+        validationRegistry: SEPOLIA_ADDRESSES.validationRegistry,
+        hint: `Call validationRequest("${SEPOLIA_ADDRESSES.sigilMiddleware}", ${agentId}, "", "${requestHash}") on ${SEPOLIA_ADDRESSES.validationRegistry}`,
+      }, { status: 400 });
+    }
 
     // Spawn CRE workflow
     const creBin = process.env.CRE_BIN || resolve(process.env.HOME || "~", ".cre/bin/cre");
