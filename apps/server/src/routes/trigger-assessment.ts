@@ -153,7 +153,7 @@ export async function handleTriggerAssessment(req: Request): Promise<Response> {
       console.warn(`[trigger-assessment] No validationRequest for ${requestHash} — stamp will be saved to Sigil only, not 8004 registry`);
     }
 
-    // Spawn CRE workflow
+    // Spawn CRE workflow (with retry for transient failures)
     const creBin = process.env.CRE_BIN || resolve(process.env.HOME || "~", ".cre/bin/cre");
     const creDir = process.env.CRE_PROJECT_DIR || resolve(import.meta.dir, "../../../../sigil-cre");
 
@@ -164,33 +164,46 @@ export async function handleTriggerAssessment(req: Request): Promise<Response> {
       requestHash,
     });
 
-    const proc = Bun.spawn([
-      creBin, "workflow", "simulate", "sigil-assessment",
-      "--non-interactive", "--trigger-index", "0",
-      "--http-payload", httpPayload,
-      "--target", "staging-settings", "--broadcast",
-    ], {
-      cwd: creDir,
-      env: { ...process.env, CRE_ETH_PRIVATE_KEY: process.env.CRE_ETH_PRIVATE_KEY, AI_SERVICE_API_KEY: process.env.SIGIL_API_KEY || "" },
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const MAX_CRE_RETRIES = 1;
+    const CRE_RETRY_DELAY_MS = 3000;
+    let exitCode = 1;
+    let stdout = "";
+    let stderr = "";
 
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
+    for (let attempt = 0; attempt <= MAX_CRE_RETRIES; attempt++) {
+      const proc = Bun.spawn([
+        creBin, "workflow", "simulate", "sigil-assessment",
+        "--non-interactive", "--trigger-index", "0",
+        "--http-payload", httpPayload,
+        "--target", "staging-settings", "--broadcast",
+      ], {
+        cwd: creDir,
+        env: { ...process.env, CRE_ETH_PRIVATE_KEY: process.env.CRE_ETH_PRIVATE_KEY, AI_SERVICE_API_KEY: process.env.SIGIL_API_KEY || "" },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+
+      [stdout, stderr, exitCode] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+        proc.exited,
+      ]);
+
+      if (exitCode === 0) break;
+
+      console.warn(`[trigger-assessment] CRE attempt ${attempt + 1}/${MAX_CRE_RETRIES + 1} failed (exit ${exitCode})`);
+      if (stderr.trim()) console.error(`[trigger-assessment] CRE stderr:\n${stderr}`);
+      if (attempt < MAX_CRE_RETRIES) {
+        await new Promise((r) => setTimeout(r, CRE_RETRY_DELAY_MS));
+      }
+    }
 
     console.log(`[trigger-assessment] CRE exit code: ${exitCode}`);
-    if (stdout.trim()) console.log(`[trigger-assessment] CRE stdout:\n${stdout}`);
-    if (stderr.trim()) console.error(`[trigger-assessment] CRE stderr:\n${stderr}`);
 
     if (exitCode !== 0) {
       return Response.json({
         error: "assessment_failed",
-        message: "CRE workflow failed",
-        details: (stderr || stdout).slice(-500),
+        message: "Assessment workflow failed. Please retry.",
       }, { status: 500 });
     }
 

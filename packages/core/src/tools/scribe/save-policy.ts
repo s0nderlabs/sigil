@@ -81,31 +81,44 @@ export const savePolicy: ToolDefinition = {
       isPublic: args.isPublic,
     });
 
-    const proc = Bun.spawn([
-      creBin, "workflow", "simulate", "sigil-assessment",
-      "--non-interactive", "--trigger-index", "0",
-      "--http-payload", httpPayload,
-      "--target", "staging-settings", "--broadcast",
-    ], {
-      cwd: creDir,
-      env: { ...process.env, CRE_ETH_PRIVATE_KEY: creKey, AI_SERVICE_API_KEY: process.env.SIGIL_API_KEY || "" },
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const MAX_CRE_RETRIES = 1;
+    const CRE_RETRY_DELAY_MS = 3000;
+    let exitCode = 1;
+    let stdout = "";
+    let stderr = "";
 
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
+    for (let attempt = 0; attempt <= MAX_CRE_RETRIES; attempt++) {
+      const proc = Bun.spawn([
+        creBin, "workflow", "simulate", "sigil-assessment",
+        "--non-interactive", "--trigger-index", "0",
+        "--http-payload", httpPayload,
+        "--target", "staging-settings", "--broadcast",
+      ], {
+        cwd: creDir,
+        env: { ...process.env, CRE_ETH_PRIVATE_KEY: creKey, AI_SERVICE_API_KEY: process.env.SIGIL_API_KEY || "" },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+
+      [stdout, stderr, exitCode] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+        proc.exited,
+      ]);
+
+      if (exitCode === 0) break;
+
+      console.warn(`[save-policy] CRE attempt ${attempt + 1}/${MAX_CRE_RETRIES + 1} failed (exit ${exitCode})`);
+      if (stderr.trim()) console.error(`[save-policy] CRE stderr:\n${stderr}`);
+      if (attempt < MAX_CRE_RETRIES) {
+        await new Promise((r) => setTimeout(r, CRE_RETRY_DELAY_MS));
+      }
+    }
 
     console.log("[save-policy] CRE exit code:", exitCode);
     if (exitCode !== 0) {
-      console.error("[save-policy] CRE stdout:", stdout.slice(0, 500));
-      if (stderr) console.error("[save-policy] CRE stderr:", stderr.slice(0, 500));
       return toolResponse({
-        error: "CRE policy registration failed",
-        details: stderr || stdout,
+        error: "Policy registration failed. Please retry.",
       });
     }
 
