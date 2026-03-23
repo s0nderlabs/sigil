@@ -7,6 +7,6 @@ export const SEPOLIA_ADDRESSES = {
   creSimulationForwarder: "0x15fC6ae953E024d975e77382eEeC56A9101f9F88",
   creTestnetForwarder: "0xF8344CFd5c43616a4366C34E3EEE75af79a74482",
   // Sigil's own 8004 agents — set after running dev/0-register-sigil-agents.sh
-  scribeAgentId: "",
-  assessorAgentId: "",
+  scribeAgentId: "2223",
+  assessorAgentId: "2224",
 } as const;

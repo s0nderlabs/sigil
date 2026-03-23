@@ -12,7 +12,7 @@
       "name": "Scribe",
       "role": "Policy Onboarder",
       "description": "Conversational AI agent that helps protocols define compliance rules through natural language. Translates requirements into structured rule sets and registers policies on-chain.",
-      "erc8004Identity": "",
+      "erc8004Identity": "2223",
       "tools": ["get_policies", "create_rule", "save_policy"],
       "computeConstraints": {
         "maxTurns": 15
@@ -22,7 +22,7 @@
       "name": "Assessor",
       "role": "Compliance Evaluator",
       "description": "Autonomous assessment agent that evaluates agents against policy rules using on-chain data, transaction history, and AI reasoning. Pins evidence to IPFS and writes compliance stamps to the 8004 Validation Registry.",
-      "erc8004Identity": "",
+      "erc8004Identity": "2224",
       "tools": [
         "get_eth_balance",
         "get_token_balance",
